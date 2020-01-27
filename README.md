@@ -1,2 +1,3 @@
-# itunes-visualizer
-feeling death approach as my stir fry mildly sizzles on the floor
+# itunes visualizer
+this will be an itunes visualizer
+you will not believe your eyes once the colors start dancing upon the screen
