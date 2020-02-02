@@ -6,6 +6,11 @@ include(ExternalProject)
 
 enable_testing()
 
+add_library(timing src/timing.cpp)
+target_include_directories(timing PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+add_executable(itunes-visualizer src/main.cpp)
+
 # from gtest docs
 
 configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
@@ -42,19 +47,17 @@ endif()
 # Now simply link against gtest or gtest_main as needed. Eg
 set(test_dir ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 
-# test bundles
-set(TESTNAMES example)
+FILE(GLOB TESTFILES ${test_dir}/*.cpp)
 
-# individual files required to compile
-set(example ${test_dir}/exampletest.cpp)
+set(timingtest_deps timing)
 
-foreach(TESTNAME ${TESTNAMES})
-    add_executable(${TESTNAME} ${${TESTNAME}})
-    target_link_libraries(${TESTNAME} gtest_main)
-    add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
-endforeach(TESTNAME)
-
-add_executable(itunes-visualizer main.cpp)
+foreach(TESTFILE ${TESTFILES})
+  get_filename_component(TESTNAME ${TESTFILE} NAME_WE)
+  add_executable(${TESTNAME} ${TESTFILE})
+  target_include_directories(${TESTNAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_link_libraries(${TESTNAME} gtest_main ${${TESTNAME}_deps})
+  add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
+endforeach(TESTFILE)
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})
