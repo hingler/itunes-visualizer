@@ -6,7 +6,8 @@ include(ExternalProject)
 
 enable_testing()
 
-add_library(PortAudio lib/libportaudio.a)
+# sidenote: can include static libs without `add_library`
+# just add it thats all you do
 
 add_library(timing src/timing/timing.cpp)
 
