@@ -11,7 +11,8 @@
       - make a special thread safe class for it (something barebones)
       - allow the io to be spun off into another thread
       - storing like 3 seconds of float-encoded audio at 48Khz is 600KB or so
-        which is a good chunk but not terrible for this purpose
+        which is a good chunk but not terrible for this purpose, alternatively
+        we could keep it to like 1 second or less
 
 - create a library which will accept audio input and convert it to samples
 - create a brief fastFFT library for shits
