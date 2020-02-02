@@ -6,8 +6,8 @@ include(ExternalProject)
 
 enable_testing()
 
-add_library(timing src/timing.cpp)
-target_include_directories(timing PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+add_library(timing src/timing/timing.cpp)
+target_include_directories(timing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_executable(itunes-visualizer src/main.cpp)
 
@@ -54,7 +54,7 @@ set(timingtest_deps timing)
 foreach(TESTFILE ${TESTFILES})
   get_filename_component(TESTNAME ${TESTFILE} NAME_WE)
   add_executable(${TESTNAME} ${TESTFILE})
-  target_include_directories(${TESTNAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_include_directories(${TESTNAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
   target_link_libraries(${TESTNAME} gtest_main ${${TESTNAME}_deps})
   add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
 endforeach(TESTFILE)
