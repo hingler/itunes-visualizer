@@ -6,11 +6,15 @@ include(ExternalProject)
 
 enable_testing()
 
+add_library(PortAudio lib/libportaudio.a)
+
 add_library(timing src/timing/timing.cpp)
+
 target_include_directories(timing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
-add_executable(itunes-visualizer src/main.cpp)
+# add_executable(itunes-visualizer src/main.cpp)
 
+### BUILD TESTS ###
 # from gtest docs
 
 configure_file(CMakeLists.txt.in googletest-download/CMakeLists.txt)
@@ -58,6 +62,8 @@ foreach(TESTFILE ${TESTFILES})
   target_link_libraries(${TESTNAME} gtest_main ${${TESTNAME}_deps})
   add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
 endforeach(TESTFILE)
+
+### FINAL CONFIGS ###
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

@@ -12,18 +12,18 @@ namespace Timer {
     HRC::time_point lastDelta = HRC::now();
   }
 
-  double getGlobalTime() {
+  double GetGlobalTime() {
     return std::chrono::duration<double, std::milli>(HRC::now() - start).count();
   }
 
-  double getDelta() {
+  double GetDelta() {
     HRC::time_point newDelta = HRC::now();
     std::chrono::duration<double, std::milli> dur(newDelta - lastDelta);
     lastDelta = newDelta;
     return dur.count();
   }
 
-  double pollDelta() {
+  double PollDelta() {
     HRC::time_point newDelta = HRC::now();
     std::chrono::duration<double, std::milli> dur(newDelta - lastDelta);
     return dur.count();

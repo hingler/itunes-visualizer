@@ -16,7 +16,7 @@ typedef std::chrono::high_resolution_clock HRC;
 
 TEST(EnterTheFunkoverse, EvalGlobalTimerAccuracy) {
     HRC::time_point init_time = HRC::now();
-    double init_lib = Timer::getGlobalTime();
+    double init_lib = Timer::GetGlobalTime();
 
     double libDiff;
     double expDiff;
@@ -28,17 +28,17 @@ TEST(EnterTheFunkoverse, EvalGlobalTimerAccuracy) {
 
     double eps_calc;
 
-    Timer::getDelta();
+    Timer::GetDelta();
 
     for (int i = 1; i <= ITR_COUNT; i++) {
         std::this_thread::sleep_for(CHR::milliseconds(MS_JUMP));
         // after jump, evaluate accuracy bounds, check if close enough
 
-        libDiff = Timer::getGlobalTime() - init_lib;
+        libDiff = Timer::GetGlobalTime() - init_lib;
         hrcDiff = CHR::duration<double, std::milli>(HRC::now() - init_time).count();
         expDiff = (double)MS_JUMP * i;
 
-        thisDelta = Timer::getDelta();
+        thisDelta = Timer::GetDelta();
         lastDelta = libDiff - lastLib;
 
         eps_calc = i * RL_EPS;
@@ -59,7 +59,7 @@ TEST(EnterTheFunkoverse, EvalTimerClassAccuracy) {
 
     Timer::TimerInstance<std::milli> timer;
 
-    double init_lib = timer.getDelta();
+    double init_lib = timer.GetDelta();
 
     double hrcDiff;
     double libDiff;
@@ -69,17 +69,17 @@ TEST(EnterTheFunkoverse, EvalTimerClassAccuracy) {
 
     double eps_calc;
 
-    timer.resetTimer();
+    timer.ResetTimer();
 
     Timer::TimerInstance<std::milli> timerDelta(timer);
 
     for (int i = 1; i <= ITR_COUNT; i++) {
-        timerDelta.resetTimer();
+        timerDelta.ResetTimer();
         std::this_thread::sleep_for(std::chrono::milliseconds(MS_JUMP));
 
         hrcDiff = CHR::duration<double, std::milli>(HRC::now() - init_time).count();
-        libDelta = timerDelta.getDelta();
-        libDiff = timer.getDelta();
+        libDelta = timerDelta.GetDelta();
+        libDiff = timer.GetDelta();
         // timerDelta.resetTimer();
         hrcDelta = hrcDiff - lastLib;
         lastLib = hrcDiff;
