@@ -28,6 +28,7 @@ class AudioQueue {
  private:
   const uint32_t buffer_capacity_;
   BUFFER_UNIT* buffer_;
+  // todo: figure out atomic mem mgmt shit
   std::atomic_uint32_t buffer_read_;
   std::atomic_uint32_t buffer_write_;
 

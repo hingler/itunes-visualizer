@@ -59,7 +59,9 @@ TEST_F(AudioTest, CheckMultipleFills) {
 
     for (int16_t j = 0; j < FILL_SIZE; j++) {
       // have it leap around a bit
+      // errors are being generated here and i am not sure whyZzz
       ASSERT_EQ(rand_data[j], q->Pop(success));
+      ASSERT_TRUE(success);
     }
 
     ASSERT_EQ(0, q->Size());
