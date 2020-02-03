@@ -80,18 +80,29 @@ class AudioQueue {
   /**
    *  Read the next item in the queue and advance.
    * 
+   *  Arguments:
+   *    success, ref argument set to true if successful and false otherwise.
+   * 
    *  Returns:
    *    - The next item in the queue, if available.
-   *    - Otherwise (list is empty), returns NULL.
+   *    - Otherwise (list is empty), returns -1.
    */ 
-  BUFFER_UNIT Pop() {
+  BUFFER_UNIT Pop(bool& success) {
     if (Empty()) {
-      return NULL;
+      success = false;
+      return -1;
     }
+    success = true;
     uint32_t read_copy = buffer_read_;
     BUFFER_UNIT target = buffer_[Mask(read_copy++)];
     buffer_read_ = ConstrainParam(read_copy);
     return target;
+  }
+
+  BUFFER_UNIT Pop() {
+    // eh
+    bool ignore = false;
+    return Pop(ignore);
   }
 
   /**
