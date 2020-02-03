@@ -21,8 +21,16 @@
 //  - write > read, diff
 //  - else, add 2xcapac to write + diff
 
+// acquire/release go in tandem
+// relaxed carries no order guarantees and just ensures that the operation happens
+
 // threadsafe for single-read/single-write
 
+// some reference for memory ordering:
+// https://pdfs.semanticscholar.org/8c15/b938e6fdbcbab6e1b5704857043e5c680734.pdf
+
+
+// this is hopefully fine?
 template <typename BUFFER_UNIT> // should only be (u) int8, int16, or int32
 class AudioQueue {
  private:
@@ -61,11 +69,14 @@ class AudioQueue {
    *    - true if data fits in queue, false otherwise.
    */ 
   bool Write(BUFFER_UNIT* data, uint32_t len) {
-    if (len + Size() > buffer_capacity_) {
+
+    uint32_t read_copy = buffer_read_.load(std::memory_order_relaxed);
+    uint32_t write_copy = buffer_write_.load(std::memory_order_acquire);
+
+    if (read_copy + write_copy > buffer_capacity_) {
       return false;
     }
 
-    uint32_t write_copy = buffer_write_;
     uint32_t masked_write;
 
     for (uint32_t i = 0; i < len; i++) {
@@ -74,7 +85,7 @@ class AudioQueue {
       write_copy++;
     }
 
-    buffer_write_ =  ConstrainParam(write_copy);
+    buffer_write_.store(ConstrainParam(write_copy), std::memory_order_release);
     return true;
   }
 
@@ -89,14 +100,17 @@ class AudioQueue {
    *    - Otherwise (list is empty), returns -1.
    */ 
   BUFFER_UNIT Pop(bool& success) {
-    if (Empty()) {
+    // get a lower bound estimate on the content we have
+    uint32_t write_copy = buffer_write_.load(std::memory_order_relaxed);
+    uint32_t read_copy = buffer_read_.load(std::memory_order_acquire);
+
+    if (read_copy == write_copy) {
       success = false;
       return -1;
     }
     success = true;
-    uint32_t read_copy = buffer_read_;
     BUFFER_UNIT target = buffer_[Mask(read_copy++)];
-    buffer_read_ = ConstrainParam(read_copy);
+    buffer_read_.store(ConstrainParam(read_copy), std::memory_order_release);
     return target;
   }
 
@@ -114,7 +128,7 @@ class AudioQueue {
    *    - NULL, if list is empty (otherwise).
    */ 
   BUFFER_UNIT Peek() {
-    return buffer_[Mask(buffer_read_)];
+    return buffer_[Mask(buffer_read_.load(std::memory_order_relaxed))];
   }
 
   uint32_t Size() {
