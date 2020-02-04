@@ -29,8 +29,10 @@
 // some reference for memory ordering:
 // https://pdfs.semanticscholar.org/8c15/b938e6fdbcbab6e1b5704857043e5c680734.pdf
 
+// class is intended for an R/W pair, as such multithreading is limited.
 
-// this is hopefully fine?
+
+// this is hopefuly fine?
 template <typename BUFFER_UNIT> // should only be (u) int8, int16, or int32
 class AudioQueue {
  private:
@@ -39,6 +41,14 @@ class AudioQueue {
   // todo: figure out atomic mem mgmt shit
   std::atomic_uint32_t buffer_read_;
   std::atomic_uint32_t buffer_write_;
+
+  const uint32_t readsize_;
+
+  std::atomic<BUFFER_UNIT*> read_buffer_;
+
+  std::atomic<BUFFER_UNIT*> aux_buffer_;
+
+  std::atomic_flag buffer_in_use_;
 
   uint32_t Mask(uint32_t val) {
     return val % buffer_capacity_;
@@ -52,11 +62,21 @@ class AudioQueue {
     return param;
   }
 
+  uint32_t GetSize(uint32_t rb, uint32_t wb) {
+    if (rb > wb) {
+      wb += 2 * buffer_capacity_;
+    }
+
+    return wb - rb;
+  }
+
  public:
-  AudioQueue(int len) : buffer_capacity_(len), 
+  AudioQueue(int capacity, int readsize) : buffer_capacity_(capacity), 
                         buffer_(new BUFFER_UNIT[buffer_capacity_]),
                         buffer_read_(0),
-                        buffer_write_(0) { };
+                        buffer_write_(0),
+                        readsize_(readsize),
+                        read_buffer_(new BUFFER_UNIT[readsize_]) { };
 
   /**
    *  Writes `len` of `BUFFER_UNIT` to the queue.
@@ -70,10 +90,10 @@ class AudioQueue {
    */ 
   bool Write(BUFFER_UNIT* data, uint32_t len) {
 
-    uint32_t read_copy = buffer_read_.load(std::memory_order_relaxed);
+    uint32_t read_copy = buffer_read_.load(std::memory_order_acq_rel);
     uint32_t write_copy = buffer_write_.load(std::memory_order_acquire);
 
-    if (read_copy + write_copy > buffer_capacity_) {
+    if (GetSize(read_copy, write_copy) > buffer_capacity_) {
       return false;
     }
 
@@ -101,7 +121,7 @@ class AudioQueue {
    */ 
   BUFFER_UNIT Pop(bool& success) {
     // get a lower bound estimate on the content we have
-    uint32_t write_copy = buffer_write_.load(std::memory_order_relaxed);
+    uint32_t write_copy = buffer_write_.load(std::memory_order_acq_rel);
     uint32_t read_copy = buffer_read_.load(std::memory_order_acquire);
 
     if (read_copy == write_copy) {
@@ -120,6 +140,41 @@ class AudioQueue {
     return Pop(ignore);
   }
 
+  const BUFFER_UNIT* FillReadBuffer(int32_t len = readsize_) {
+    uint32_t write_copy = buffer_read_.load(std::memory_order_relaxed);
+    uint32_t read_copy = buffer_write_.load(std::memory_order_acquire);
+
+    if (len > readsize_ || GetSize(read_copy, write_copy) < len) {
+      // invalid input value
+      return nullptr;
+    }
+
+    uint32_t masked_read;
+
+    // if something else is copying this buffer, swap to a new one and flip the read bit.
+  if (buffer_in_use_.test_and_set(std::memory_order_acq_rel)) {
+    BUFFER_UNIT* main = read_buffer_.load(std::memory_order_)
+  }
+
+
+    for (uint32_t i = 0; i < readsize_; i++) {
+      masked_read = Mask(read_copy);
+      read_buffer_[i] = buffer_[masked_read];
+    }
+
+    return const_cast<const BUFFER_UNIT*>(read_buffer_);
+  }
+
+  BUFFER_UNIT* CopyReadBuffer() {
+    BUFFER_UNIT* read_buffer = read_buffer_.load(std::memory_order_acq_rel);
+    buffer_in_use_.test_and_set(std::memory_order_acq_rel);
+
+    // do your shit
+    // wait around until the atomic flag is freed
+    // once it is, uh
+    // do whatever i guess?
+  }
+
   /**
    *  Read the next item in the queue, and do not advance.
    * 
@@ -131,19 +186,16 @@ class AudioQueue {
     return buffer_[Mask(buffer_read_.load(std::memory_order_relaxed))];
   }
 
+
+
   uint32_t Size() {
-    // generate lock here
-    if (buffer_write_ >= buffer_read_) {
-      return buffer_write_ - buffer_read_;
-    } else {
-      return (buffer_write_ + 2 * buffer_capacity_ - buffer_read_);
-    }
-    // release lock here
+    // gen
+
+  ~AudioQueue() {
+    delete[] buffer_;
   }
 
-  bool Empty() {
-    return (buffer_read_ == buffer_write_);
-  }
+};  // class AudioQueue
 
   ~AudioQueue() {
     delete[] buffer_;
