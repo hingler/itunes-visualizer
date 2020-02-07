@@ -1,7 +1,7 @@
 #include <iostream>
 #include <chrono>
 
-#include "timing.hpp"
+#include "timing/timing.hpp"
 
 #define HRC std::chrono::high_resolution_clock
 

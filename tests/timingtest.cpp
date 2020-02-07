@@ -2,7 +2,7 @@
 #include <thread>
 
 #include "gtest/gtest.h"
-#include "timing.hpp"
+#include "timing/timing.hpp"
 
 // should probably get rid of these
 #define ITR_COUNT 100
