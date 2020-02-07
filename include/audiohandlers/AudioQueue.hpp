@@ -32,7 +32,7 @@
 // class is intended for an R/W pair, as such multithreading is limited.
 
 
-// this is hopefuly fine?
+// this is hopefully fine?
 template <typename BUFFER_UNIT> // should only be (u) int8, int16, or int32
 class AudioQueue {
  private:
@@ -91,7 +91,7 @@ class AudioQueue {
   bool Write(BUFFER_UNIT* data, uint32_t len) {
 
     uint32_t read_copy = buffer_read_.load(std::memory_order_acq_rel);
-    uint32_t write_copy = buffer_write_.load(std::memory_order_acquire);
+    uint32_t write_copy = buffer_write_.load(std::memory_order_relaxed);
 
     if (GetSize(read_copy, write_copy) > buffer_capacity_) {
       return false;
@@ -121,8 +121,8 @@ class AudioQueue {
    */ 
   BUFFER_UNIT Pop(bool& success) {
     // get a lower bound estimate on the content we have
-    uint32_t write_copy = buffer_write_.load(std::memory_order_acq_rel);
-    uint32_t read_copy = buffer_read_.load(std::memory_order_acquire);
+    uint32_t write_copy = buffer_write_.load(std::memory_order_acquire);
+    uint32_t read_copy = buffer_read_.load(std::memory_order_relaxed);
 
     if (read_copy == write_copy) {
       success = false;
@@ -189,13 +189,18 @@ class AudioQueue {
 
 
   uint32_t Size() {
-    // gen
-
-  ~AudioQueue() {
-    delete[] buffer_;
+    // generate lock here
+    if (buffer_write_ >= buffer_read_) {
+      return buffer_write_ - buffer_read_;
+    } else {
+      return (buffer_write_ + 2 * buffer_capacity_ - buffer_read_);
+    }
+    // release lock here
   }
 
-};  // class AudioQueue
+  bool Empty() {
+    return (buffer_read_ == buffer_write_);
+  }
 
   ~AudioQueue() {
     delete[] buffer_;
