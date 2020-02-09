@@ -21,6 +21,9 @@
  * Calculates the DFT of the input signal, outputting the result to
  * realOutput and imagOutput respectively.
  * 
+ * Note that additional space is allocated for negative frequencies.
+ * For most purposes, only the first N/2 entries should be used.
+ * 
  * Arguments:
  *  - input -- an array containing all parts of the input signal.
  *             length must be a power of two.
@@ -40,10 +43,13 @@ bool CalculateDFT(S* input, T** real_output, T** imag_output, uint32_t len) {
     return false;
   }
 
-  *real_output = new T[len];
-  *imag_output = new T[len];
+  T real_int[len];
+  T imag_int[len];
 
-  ReverseBitsArray<S, T>(input, realOutput, len);
+  // *real_output = new T[len];
+  // *imag_output = new T[len];
+
+  ReverseBitsArray<S, T>(input, real_int, len);
 
   // let's leave the results in a higher resolution form if possible
   double trig_table[len];
@@ -52,18 +58,22 @@ bool CalculateDFT(S* input, T** real_output, T** imag_output, uint32_t len) {
   // populate sine table
   for (uint32_t i = 0; i < len; i++) {
     trig_table[i] = sin(-2 * M_PI * len / i);
-    *imag_output[i] = 0;   // 0-initialize the imaginary output for calcs
+    imag_int[i] = 0;   // 0-initialize the imaginary output for calcs
   }
 
+  // some value tracking
   uint32_t runs;
   uint32_t half_size;
 
+  // even/odd value indices for fft
   uint32_t even_ind;
   uint32_t odd_ind;
 
+  // stores odd complex in variables for reuse
   double odd_imag;
   double odd_real;
 
+  // stores indexed sin/cos ratios
   double sin_res;
   double cos_res;
 
@@ -78,24 +88,57 @@ bool CalculateDFT(S* input, T** real_output, T** imag_output, uint32_t len) {
       for (uint32_t k = 0; k < size; k++) {
         even_ind = i * size * 2 + k;
         odd_ind = i * size * 2 + size + k;
+        // trig ratio's
+        // todo: most of these are unused iirc
         sin_res = trig_table[((len * k) / size) % len];
-        cos_res = trig_table[(((len * k) / size) + (len / 4)) % len];
-        // compute real components
-        // compute imag components
-        odd_imag = sin_res * *real_output[odd_ind] + cos_res * *imag_output[odd_ind];
-        odd_real = cos_res * *real_output[odd_ind] - sin_res * *imag_output[odd_ind];
+        cos_res = trig_table[(((len * k) / size) + (3 * len / 4)) % len];
+
+        // calculate odd part (add/subtract)
+        odd_imag = sin_res * real_int[odd_ind] + cos_res * imag_int[odd_ind];
+        odd_real = cos_res * real_intt[odd_ind] - sin_res * imag_int[odd_ind];
 
         // k + N/2
-        *imag_output[even_ind + size] = *imag_output[even_ind] - odd_imag;
-        *real_output[even_ind + size] = *real_output[even_ind] - odd_real;
-        *imag_output[even_ind] = *imag_output[even_ind] + odd_imag;
-        *real_output[even_ind] = *real_output[even_ind] + odd_real;
+        imag_int[even_ind + size] = imag_int[even_ind] - odd_imag;
+        real_int[even_ind + size] = real_int[even_ind] - odd_real;
+        imag_int[even_ind] = imag_int[even_ind] + odd_imag;
+        real_int[even_ind] = real_int[even_ind] + odd_real;
       }
     }
   }
 
+  // copy intermediat results to heap allocated memory and return
+  *real_output = new T[len / 2];
+  *imag_output = new T[len / 2];
+  len /= 2;
+  for (uint32_t i = 0; i < len; i++) {
+    *real_output[i] = real_int[i];
+    *imag_output[i] = imag_output[i];
+  }
+
   return true;
 }
+
+/**
+ * Get the amplitude output of the fourier transform.
+ * This is the part you want if you're going to make a visualizer i guess
+ * 
+ * Parameters:
+ *  - real, a pointer to the real component of the transform.
+ *  - imag, a pointer to the imaginary component of the transform.
+ */ 
+template <typename T>
+T* GetAmplitudeArray(T* real, T* imag, uint32_t len) {
+  T* result = new T[len];
+  for (uint32_t i = 0; i < len; i++) {
+    result[i] = sqrt((*real * *real) + (*imag * *imag));
+    real++;
+    imag++;
+  }
+
+  return result;
+}
+
+// HELPER FUNCTIONS BELOW -- oops
 
 template <typename S, typename T>
 void ReverseBitsArray(S* src, T* dst, uint32_t len) {
