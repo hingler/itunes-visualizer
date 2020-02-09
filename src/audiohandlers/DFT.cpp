@@ -4,6 +4,8 @@
 #include <cinttypes>
 #include <cmath>
 
+#include <iostream>
+
 namespace dft {
 bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32_t len) {
   // array must be power of 2
@@ -14,18 +16,22 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
   float real_int[len];
   float imag_int[len];
 
-  // *real_output = new T[len];
-  // *imag_output = new T[len];
-
   ReverseBitsArray(input, real_int, len);
 
   // let's leave the results in a higher resolution form if possible
-  double trig_table[len];
+  double sin_table[len / 2];
+  double cos_table[len / 2];
   // note: cos(theta) = sin(theta + pi/2)
 
   // populate sine table
+  for (uint32_t i = 0; i < (len / 2); i++) {
+    // thanks up to https://github.com/dntj/jsfft
+    // for helping me realize i had my trig ratios all janked
+    sin_table[i] = sin((-2 * M_PI * i) / len);
+    cos_table[i] = cos((-2 * M_PI * i) / len);
+  }
+
   for (uint32_t i = 0; i < len; i++) {
-    trig_table[i] = sin(-2 * M_PI * len / i);
     imag_int[i] = 0;   // 0-initialize the imaginary output for calcs
   }
 
@@ -48,19 +54,21 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
   // after reversing bits, e/o entries will be next to each other
 
   // DFT on size (size * 2) input
-  for (uint32_t size = 1; size < len; size *= 2) {
+  for (uint32_t size = 1; size < len; size <<= 1) {
     uint32_t runs = (len / size) / 2;
     // # of separate DFT ops
     for (uint32_t i = 0; i < runs; i++) {
       // single fft call with size (size)
       for (uint32_t k = 0; k < size; k++) {
         even_ind = i * size * 2 + k;
-        odd_ind = i * size * 2 + size + k;
+        odd_ind = even_ind + size;
         // trig ratio's
         // todo: most of these are unused iirc
-        sin_res = trig_table[((len * k) / size) % len];
-        cos_res = trig_table[(((len * k) / size) + (3 * len / 4)) % len];
 
+
+        sin_res = sin_table[(k * len) / (2 * size)];
+        cos_res = cos_table[(k * len) / (2 * size)];
+        
         // calculate odd part (add/subtract)
         odd_imag = sin_res * real_int[odd_ind] + cos_res * imag_int[odd_ind];
         odd_real = cos_res * real_int[odd_ind] - sin_res * imag_int[odd_ind];
@@ -74,10 +82,10 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
     }
   }
 
-  // copy intermediat results to heap allocated memory and return
-  *real_output = new float[len / 2];
-  *imag_output = new float[len / 2];
-  len /= 2;
+  // copy intermediate results to heap allocated memory and return
+  *real_output = new float[len];
+  *imag_output = new float[len];
+  // currently preserved in entirety but we could just drop the latter half
   for (uint32_t i = 0; i < len; i++) {
     (*real_output)[i] = real_int[i];
     (*imag_output)[i] = imag_int[i];
@@ -98,22 +106,26 @@ float* GetAmplitudeArray(float* real, float* imag, uint32_t len) {
 }
 
 void ReverseBitsArray(float* src, float* dst, uint32_t len) {
-  // at this point len should be power of 2
-  len /= 2;
+  uint8_t bit_width = 0;
+
+  uint32_t len_copy = len - 1;
+  while (len_copy > 0) {
+    len_copy >>= 1;
+    bit_width++;
+  }
 
   uint32_t reversed_index;
   for (uint32_t i = 0; i < len; i++) {
-    reversed_index = ReverseBits(i);
+    reversed_index = ReverseBits(i, bit_width);
     dst[i] = src[reversed_index];
-    dst[reversed_index] = src[i];
   }
 }
 
-uint32_t ReverseBits(uint32_t input) {
+uint32_t ReverseBits(uint32_t input, uint8_t bit_width) {
   uint32_t result = 0;
-  while (input > 0) {
-    result += input & 1;
+  for (int i = 0; i < bit_width; i++) {
     result <<= 1;
+    result += input & 1;
     input >>= 1;
   }
 

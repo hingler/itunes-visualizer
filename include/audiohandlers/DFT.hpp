@@ -56,7 +56,7 @@ float* GetAmplitudeArray(float* real, float* imag, uint32_t len);
 
 void ReverseBitsArray(float* src, float* dst, uint32_t len);
 
-uint32_t ReverseBits(uint32_t input);
+uint32_t ReverseBits(uint32_t input, uint8_t bit_width);
 
 }  // namespace dft;
 #endif  // DFT_H_
