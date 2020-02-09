@@ -36,20 +36,19 @@
  *  - a boolean representing whether the FFT operation could occur.
  *    true if successful, false otherwise.
  */ 
-template <typename S, typename T>
-bool CalculateDFT(S* input, T** real_output, T** imag_output, uint32_t len) {
+bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32_t len) {
   // array must be power of 2
   if (len & (len - 1) || len < 2) {   // len is less than 2
     return false;
   }
 
-  T real_int[len];
-  T imag_int[len];
+  float real_int[len];
+  float imag_int[len];
 
   // *real_output = new T[len];
   // *imag_output = new T[len];
 
-  ReverseBitsArray<S, T>(input, real_int, len);
+  ReverseBitsArray(input, real_int, len);
 
   // let's leave the results in a higher resolution form if possible
   double trig_table[len];
@@ -95,7 +94,7 @@ bool CalculateDFT(S* input, T** real_output, T** imag_output, uint32_t len) {
 
         // calculate odd part (add/subtract)
         odd_imag = sin_res * real_int[odd_ind] + cos_res * imag_int[odd_ind];
-        odd_real = cos_res * real_intt[odd_ind] - sin_res * imag_int[odd_ind];
+        odd_real = cos_res * real_int[odd_ind] - sin_res * imag_int[odd_ind];
 
         // k + N/2
         imag_int[even_ind + size] = imag_int[even_ind] - odd_imag;
@@ -107,12 +106,12 @@ bool CalculateDFT(S* input, T** real_output, T** imag_output, uint32_t len) {
   }
 
   // copy intermediat results to heap allocated memory and return
-  *real_output = new T[len / 2];
-  *imag_output = new T[len / 2];
+  *real_output = new float[len / 2];
+  *imag_output = new float[len / 2];
   len /= 2;
   for (uint32_t i = 0; i < len; i++) {
-    *real_output[i] = real_int[i];
-    *imag_output[i] = imag_output[i];
+    (*real_output)[i] = real_int[i];
+    (*imag_output)[i] = imag_int[i];
   }
 
   return true;
@@ -126,9 +125,9 @@ bool CalculateDFT(S* input, T** real_output, T** imag_output, uint32_t len) {
  *  - real, a pointer to the real component of the transform.
  *  - imag, a pointer to the imaginary component of the transform.
  */ 
-template <typename T>
-T* GetAmplitudeArray(T* real, T* imag, uint32_t len) {
-  T* result = new T[len];
+
+float* GetAmplitudeArray(float* real, float* imag, uint32_t len) {
+  float* result = new float[len];
   for (uint32_t i = 0; i < len; i++) {
     result[i] = sqrt((*real * *real) + (*imag * *imag));
     real++;
@@ -140,8 +139,7 @@ T* GetAmplitudeArray(T* real, T* imag, uint32_t len) {
 
 // HELPER FUNCTIONS BELOW -- oops
 
-template <typename S, typename T>
-void ReverseBitsArray(S* src, T* dst, uint32_t len) {
+void ReverseBitsArray(float* src, float* dst, uint32_t len) {
   // at this point len should be power of 2
   len /= 2;
 
