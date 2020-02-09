@@ -29,7 +29,9 @@ template <typename BUFFER_UNIT>
 class AudioBufferSPSC {
 
  public:
-  AudioBufferSPSC(int twopowcapacity, int readsize) : 
+  AudioBufferSPSC(int twopowcapacity, int readsize) {
+
+  }
   
  private:
  
