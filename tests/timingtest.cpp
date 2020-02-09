@@ -78,9 +78,8 @@ TEST(EnterTheFunkoverse, EvalTimerClassAccuracy) {
         std::this_thread::sleep_for(std::chrono::milliseconds(MS_JUMP));
 
         hrcDiff = CHR::duration<double, std::milli>(HRC::now() - init_time).count();
-        libDelta = timerDelta.GetDelta();
         libDiff = timer.GetDelta();
-        // timerDelta.resetTimer();
+        libDelta = timerDelta.GetDelta();
         hrcDelta = hrcDiff - lastLib;
         lastLib = hrcDiff;
 
