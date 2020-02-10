@@ -74,10 +74,10 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
         odd_real = cos_res * real_int[odd_ind] - sin_res * imag_int[odd_ind];
 
         // k + N/2
-        imag_int[even_ind + size] = imag_int[even_ind] - odd_imag;
-        real_int[even_ind + size] = real_int[even_ind] - odd_real;
-        imag_int[even_ind] = imag_int[even_ind] + odd_imag;
-        real_int[even_ind] = real_int[even_ind] + odd_real;
+        imag_int[even_ind + size] = (imag_int[even_ind] - odd_imag);
+        real_int[even_ind + size] = (real_int[even_ind] - odd_real);
+        imag_int[even_ind] = (imag_int[even_ind] + odd_imag);
+        real_int[even_ind] = (real_int[even_ind] + odd_real);
       }
     }
   }
