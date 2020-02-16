@@ -24,25 +24,83 @@
 
 
 #include <atomic>
+#include <cstdint>
+#include <cmath>
+
+struct pc_marker {
+  pc_marker(int size) : position(0), safesize(size) { }
+  uint32_t position; // the index which the marker points to
+  uint32_t safesize;  // space guaranteed ahead of position
+};
 
 template <typename BUFFER_UNIT>
 class AudioBufferSPSC {
 
  public:
-  AudioBufferSPSC(int twopowcapacity, int readsize) {
+  AudioBufferSPSC(int twopow, int maxreadlen) :
+    buffer_capacity_(pow(2, twopow)),
+    buffer_(new BUFFER_UNIT[buffer_capacity_]),
+    shared_read_(0),
+    shared_write_(0),
 
+
+    reader_thread(pc_marker(readsize)),
+    writer_thread(pc_marker(readsize))
+  {
+    
+  }
+
+  /**
+   * Reads a portion of the buffer (if possible) to the readzone, and
+   * returns a pointer to it. Does not advance the read-marker.
+   * 
+   * Arguments:
+   *  count, the number of elements to be read.
+   *  output, an output parameter which will point to the desired memory.
+   * 
+   * Returns:
+   *  A read-only pointer to the relevant section of memory.
+   *  If the requested amount of memory is unavailable, returns
+   *  however many bytes could possibly be copied.
+   *  
+   */ 
+  size_t peek(uint32_t count, const BUFFER_UNIT*& output) {
+    // if we don't need to jump, we can just return the buffer chunk
+    uint32_t len;
+    if (reader_thread_.safesize < count) {
+
+    }
   }
   
  private:
- 
+  const uint32_t buffer_capacity_;  // max capacity of the buffer
+  BUFFER_UNIT* buffer_;   // pointer to internal buffer
 
-  const uint32_t buffer_capacity_;
-  BUFFER_UNIT* buffer_;
+  std::atomic_uint32_t shared_read_;  // shared ptr for syncing read val
+  std::atomic_uint32_t shared_write_;   // shared ptr for syncing write val
 
-  std::atomic_uint32_t shared_read_;
-  std::atomic_uint32_t shared_write_;
+  // todo: resolve issue of reading data while it may be written at the same time
+  // in the read thread: read to a second ring buffer which can be shared with a render thread.
+  // even better: if the goal is an fft printout, we can rely on an atomic int to track sample count,
+  // and read a set size from that ring buffer, only advancing when necessary
 
+  // a safe readzone we can use to avoid memory allocation
+  // not limited by pow2 restriction!
   const uint32_t readsize_;
+  BUFFER_UNIT* readzone_;
 
-  BUFFER_UNIT* copy_storage_;
+  pc_marker reader_thread_;
+  pc_marker writer_thread_;
+
+  // Mask functions
+
+  /**
+   * Mask a given value based on the length of the buffer.
+   * 
+   * Arguments:
+   *  - input, the value which we are masking.
+   * 
+   * Returns:
+   *  
+   */ 
 };

@@ -37,7 +37,6 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
 
   // some value tracking
   uint32_t runs;
-  uint32_t half_size;
 
   // even/odd value indices for fft
   uint32_t even_ind;
@@ -63,8 +62,6 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
         even_ind = i * size * 2 + k;
         odd_ind = even_ind + size;
         // trig ratio's
-        // todo: most of these are unused iirc
-
 
         sin_res = sin_table[(k * len) / (2 * size)];
         cos_res = cos_table[(k * len) / (2 * size)];
