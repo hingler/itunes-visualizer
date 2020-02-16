@@ -37,7 +37,6 @@ struct pc_marker {
 
 template <typename BUFFER_UNIT>
 class AudioBufferSPSC {
-
  public:
   AudioBufferSPSC(int twopow) :
     buffer_capacity_(pow(2, twopow)),
@@ -62,7 +61,7 @@ class AudioBufferSPSC {
    * Returns:
    *  The number of bytes which could be read.
    */ 
-  size_t peek(uint32_t count, BUFFER_UNIT*& output) {
+  size_t Peek(uint32_t count, BUFFER_UNIT*& output) {
     uint32_t len;
     if (reader_thread_.safesize < count) {
       // no guarantee that we have enough room to read -- check the atomic
@@ -99,8 +98,9 @@ class AudioBufferSPSC {
    *  - count, the number of elements we are attempting to read.
    * 
    * Returns:
+   *  - a R/W pointer to the read data.
    */ 
-  BUFFER_UNIT* read(uint32_t count) {
+  BUFFER_UNIT* Read(uint32_t count) {
     // check safesize
     if (reader_thread_.safesize < count) {
       UpdateReaderThread();
@@ -122,14 +122,50 @@ class AudioBufferSPSC {
     reader_thread_.position = MaskTwo(reader_thread_.position + count);
     reader_thread_.safesize -= count;
 
+    // update read atomic
+    shared_read_.store(reader_thread_.position, std::memory_order_release);
+
     return readzone_;
+  }
+
+  /**
+   * Write to the buffer.
+   * Returns whether or not the write was successful --
+   * false if not enough room, true otherwise.
+   */ 
+  bool Write(BUFFER_UNIT* data, uint32_t count) {
+    if (writer_thread_.safesize < count) {
+      UpdateWriterThread();
+    }
+
+    if (writer_thread_.safesize < count) {
+      return false;
+    }
+
+    uint32_t masked_write = Mask(writer_thread_.position);
+    for (int i = 0; i < count; i++) {
+      if (masked_write > buffer_capacity_) {
+        masked_write -= buffer_capacity_;
+      }
+      buffer_[masked_write++] = data[i];
+    }
+
+    writer_thread_.position = MaskTwo(writer_thread_.position + count);
+    writer_thread.safesize -= count;
+
+    shared_write_.store(writer_thread_.position, std::memory_order_release);
   }
 
  private:
   const uint32_t buffer_capacity_;  // max capacity of the buffer
   BUFFER_UNIT* buffer_;   // pointer to internal buffer
 
+  pc_marker reader_thread_;
   std::atomic_uint32_t shared_read_;  // shared ptr for syncing read val
+  
+  char CACHE_BUSTER[64];  // yall is playn -_-
+
+  pc_marker writer_thread_;
   std::atomic_uint32_t shared_write_;   // shared ptr for syncing write val
 
   // todo: resolve issue of reading data while it may be written at the same time
@@ -140,9 +176,6 @@ class AudioBufferSPSC {
   // a safe readzone we can use to avoid memory allocation
   // not limited by pow2 restriction!
   BUFFER_UNIT* readzone_;   // read space which can be read/modified by read thread
-
-  pc_marker reader_thread_;
-  pc_marker writer_thread_;
 
   /**
    * Mask a given value based on the length of the buffer.
@@ -163,13 +196,13 @@ class AudioBufferSPSC {
 
   // updates the reader thread's safe size
   void UpdateReaderThread() {
-    uint32_t pos = shared_write_.load();
+    uint32_t pos = shared_write_.load(std::memory_order_acquire);
     reader_thread_.safesize = Mask(pos - reader_thread_.position);
   }
 
   // updates the writer thread's safe size
   void UpdateWriterThread() {
-    uint32_t pos = shared_read_.load();
+    uint32_t pos = shared_read_.load(std::memory_order_acquire);
     writer_thread_.safesize = Mask(pos - writer_thread_.position);
   }
 
