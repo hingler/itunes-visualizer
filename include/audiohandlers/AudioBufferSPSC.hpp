@@ -26,11 +26,8 @@
 #include <cstdint>
 #include <cmath>
 
-// just to get the style checker to fuck off
-typedef unsigned int uint32_t;
-
 struct pc_marker {
-  pc_marker(int size) : position(0), safesize(size) { }
+  pc_marker() : position(0), safesize(0) { }
   uint32_t position; // the index which the marker points to (masked 2x)
   uint32_t safesize;  // minimum number of elements which are guaranteed to be available
 };
@@ -43,11 +40,11 @@ class AudioBufferSPSC {
     buffer_(new BUFFER_UNIT[buffer_capacity_]),
     shared_read_(0),
     shared_write_(0),
-    reader_thread_(pc_marker(buffer_capacity_)),
-    writer_thread_(pc_marker(buffer_capacity_)),
+    reader_thread_(pc_marker()),
+    writer_thread_(pc_marker()),
     readzone_(new BUFFER_UNIT[buffer_capacity_])
     {
-      
+      writer_thread_.safesize = buffer_capacity_;
     }
 
   /**
@@ -76,6 +73,11 @@ class AudioBufferSPSC {
       len = count;
     }
 
+    // nothing to do :)
+    if (len == 0) {
+      return 0;
+    }
+    
     uint32_t masked_read = Mask(reader_thread_.position);
     for (int i = 0; i < len; i++) {
       if (masked_read >= buffer_capacity_) {
@@ -151,9 +153,22 @@ class AudioBufferSPSC {
     }
 
     writer_thread_.position = MaskTwo(writer_thread_.position + count);
-    writer_thread.safesize -= count;
+    writer_thread_.safesize -= count;
 
     shared_write_.store(writer_thread_.position, std::memory_order_release);
+
+    return true;
+  }
+
+  uint32_t Size() {
+    uint32_t size = shared_write_.load(std::memory_order_acquire);
+    size -= shared_read_.load(std::memory_order_acquire);
+    return MaskInclusive(size);
+  }
+
+  uint32_t Empty() {
+    uint32_t write = shared_write_.load(std::memory_order_acquire);
+    return (write == shared_read_.load(std::memory_order_acquire));
   }
 
  private:
@@ -190,6 +205,16 @@ class AudioBufferSPSC {
     return input & (buffer_capacity_ - 1);
   }
 
+  uint32_t MaskInclusive(uint32_t input) {
+    uint32_t masked_input = Mask(input);
+    if (input != 0 && masked_input == 0) {
+      // multiple of capacity
+      return buffer_capacity_;
+    }
+
+    return masked_input;
+  }
+
   uint32_t MaskTwo(uint32_t input) {
     return input & ((buffer_capacity_ << 1) - 1);
   }
@@ -197,13 +222,13 @@ class AudioBufferSPSC {
   // updates the reader thread's safe size
   void UpdateReaderThread() {
     uint32_t pos = shared_write_.load(std::memory_order_acquire);
-    reader_thread_.safesize = Mask(pos - reader_thread_.position);
+    reader_thread_.safesize = MaskInclusive(pos - reader_thread_.position);
   }
 
   // updates the writer thread's safe size
   void UpdateWriterThread() {
     uint32_t pos = shared_read_.load(std::memory_order_acquire);
-    writer_thread_.safesize = Mask(pos - writer_thread_.position);
+    writer_thread_.safesize = buffer_capacity_ - MaskInclusive(pos - writer_thread_.position);
   }
 
   // maybe remove

@@ -72,9 +72,8 @@ TEST(EnterTheFunkoverse, EvalTimerClassAccuracy) {
     timer.ResetTimer();
 
     Timer::TimerInstance<std::milli> timerDelta(timer);
-
+    timerDelta.ResetTimer();
     for (int i = 1; i <= ITR_COUNT; i++) {
-        timerDelta.ResetTimer();
         std::this_thread::sleep_for(std::chrono::milliseconds(MS_JUMP));
 
         hrcDiff = CHR::duration<double, std::milli>(HRC::now() - init_time).count();
@@ -82,11 +81,14 @@ TEST(EnterTheFunkoverse, EvalTimerClassAccuracy) {
         libDelta = timerDelta.GetDelta();
         hrcDelta = hrcDiff - lastLib;
         lastLib = hrcDiff;
+        
+        timerDelta.ResetTimer();
 
         eps_calc = i * RL_EPS;
 
         printf("chrono duration: %.3f ms\n", hrcDiff);
         printf("lib duration: %.3f ms\n", libDiff);
+        // something weird is going on with the deltas
         printf("chrono delta: %.3f ms\n", hrcDelta);
         printf("lib delta: %.3f ms\n\n", libDelta);
 
