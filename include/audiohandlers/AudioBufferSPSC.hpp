@@ -228,7 +228,7 @@ class AudioBufferSPSC {
   // updates the writer thread's safe size
   void UpdateWriterThread() {
     uint32_t pos = shared_read_.load(std::memory_order_acquire);
-    writer_thread_.safesize = buffer_capacity_ - MaskInclusive(pos - writer_thread_.position);
+    writer_thread_.safesize = buffer_capacity_ - MaskInclusive(writer_thread_.position - pos);
   }
 
   // maybe remove

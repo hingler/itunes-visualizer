@@ -1,6 +1,7 @@
 #include "gtest/gtest.h"
 #include "audiohandlers/AudioBufferSPSC.hpp"
 #include <cmath>
+#include <random>
 
 class BufferTests : public testing::Test {
  protected:
@@ -57,7 +58,7 @@ TEST_F(BufferTests, BufferLoopRead) {
   int16_t buffer[size];
   int16_t* reader;
   size_t peeker;
-  for (int i = 0; i < 32; i++) {
+  for (int i = 0; i < 1024; i++) {
 
     ASSERT_EQ(q->Size(), 0);
 
@@ -89,5 +90,54 @@ TEST_F(BufferTests, BufferLoopRead) {
 }
 
 TEST_F(BufferTests, RandomReadWrite) {
+  int16_t buffer_sim[size];
+  int16_t buffer_size = 0;
 
+  int16_t buffer_alloc[size];
+
+  srand(0);
+
+  int16_t itr;
+  int16_t val;
+
+  int16_t* read_result;
+
+  for (int16_t i = 0; i < 1024; i++) {
+    std::cout << "printing iteration " << i << std::endl;
+    std::cout << "initial buffer size: " << buffer_size << std::endl;
+    ASSERT_EQ(buffer_size, q->Size());
+    itr = rand() % (size - buffer_size);
+    for (int16_t j = 0; j < itr; j++) {
+      val = (rand() % 65535) - 32768;
+      buffer_alloc[j] = val;
+      // sim loads front to back, reads front to back
+      // readjust after read
+      buffer_sim[buffer_size + j] = val;
+    }
+    std::cout << "writing " << itr << " elements..." << std::endl;
+    ASSERT_TRUE(q->Write(buffer_alloc, itr));
+    buffer_size += itr;
+
+    itr = rand() % (buffer_size);
+    std::cout << "reading " << itr << " elements..." << std::endl;
+    ASSERT_GE(q->Size(), itr);
+    read_result = q->Read(itr);
+
+    std::cout << "elements read!" << std::endl;
+
+    ASSERT_TRUE(read_result != nullptr);
+
+    // check read
+    for (int16_t j = 0; j < itr; j++) {
+      ASSERT_EQ(buffer_sim[j], read_result[j]);
+    }
+
+    std::cout << "equality asserted :-)" << std::endl;
+
+    for (int16_t j = itr, k = 0; j < size; j++, k++) {
+      buffer_sim[k] = buffer_sim[j];
+    }
+
+    buffer_size -= itr;
+  }
 }
