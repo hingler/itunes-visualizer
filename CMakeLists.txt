@@ -58,7 +58,7 @@ FILE(GLOB TESTFILES ${test_dir}/*.cpp)
 
 set(timingtest_deps timing)
 set(DFTtest_deps audio)
-set(SPSCSingleThreadtest_deps )
+set(SPSCtest_deps )
 
 foreach(TESTFILE ${TESTFILES})
   get_filename_component(TESTNAME ${TESTFILE} NAME_WE)

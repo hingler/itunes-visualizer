@@ -3,6 +3,8 @@
 #include <cmath>
 #include <random>
 
+#include <thread>
+
 class BufferTests : public testing::Test {
  protected:
   AudioBufferSPSC<int16_t>* q;
@@ -19,6 +21,8 @@ class BufferTests : public testing::Test {
 };  // class BufferTests
 
 const int32_t BufferTests::size;
+const int32_t thread_read_len = 65536;
+const int32_t thread_rw_size = 1024;
 
 // ensure that the empty buffer is according to form
 TEST_F(BufferTests, CheckEmptyBuffer) {
@@ -103,8 +107,8 @@ TEST_F(BufferTests, RandomReadWrite) {
   int16_t* read_result;
 
   for (int16_t i = 0; i < 1024; i++) {
-    std::cout << "printing iteration " << i << std::endl;
-    std::cout << "initial buffer size: " << buffer_size << std::endl;
+    // std::cout << "printing iteration " << i << std::endl;
+    // std::cout << "initial buffer size: " << buffer_size << std::endl;
     ASSERT_EQ(buffer_size, q->Size());
     itr = rand() % (size - buffer_size);
     for (int16_t j = 0; j < itr; j++) {
@@ -114,25 +118,26 @@ TEST_F(BufferTests, RandomReadWrite) {
       // readjust after read
       buffer_sim[buffer_size + j] = val;
     }
-    std::cout << "writing " << itr << " elements..." << std::endl;
+    // std::cout << "writing " << itr << " elements..." << std::endl;
     ASSERT_TRUE(q->Write(buffer_alloc, itr));
     buffer_size += itr;
 
     itr = rand() % (buffer_size);
-    std::cout << "reading " << itr << " elements..." << std::endl;
+    // std::cout << "reading " << itr << " elements..." << std::endl;
     ASSERT_GE(q->Size(), itr);
     read_result = q->Read(itr);
 
-    std::cout << "elements read!" << std::endl;
+    // std::cout << "elements read!" << std::endl;
 
     ASSERT_TRUE(read_result != nullptr);
 
     // check read
     for (int16_t j = 0; j < itr; j++) {
+
       ASSERT_EQ(buffer_sim[j], read_result[j]);
     }
 
-    std::cout << "equality asserted :-)" << std::endl;
+    // std::cout << "equality asserted :-)" << std::endl;
 
     for (int16_t j = itr, k = 0; j < size; j++, k++) {
       buffer_sim[k] = buffer_sim[j];
@@ -140,4 +145,47 @@ TEST_F(BufferTests, RandomReadWrite) {
 
     buffer_size -= itr;
   }
+}
+
+// thread functions
+void WriterThread(int16_t* write_contents, AudioBufferSPSC<int16_t>* q) {
+  int32_t counter = 0;
+  while (counter < thread_read_len) {
+    while (!q->Write(write_contents, thread_rw_size));
+    counter += thread_rw_size;
+    write_contents += thread_rw_size;
+  }
+  std::cout << "writer finished successfully!" << std::endl;
+}
+
+void ReaderThread(int16_t* verify_contents, AudioBufferSPSC<int16_t>* q) {
+  int32_t counter = 0;
+  int16_t* output;
+  while (counter < thread_read_len) {
+    while ((output = q->Read(thread_rw_size)) == nullptr);
+
+    std::cout << "read " << thread_rw_size << " elements" << std::endl;
+    std::cout << q->Size() << std::endl;
+
+    for (int16_t i = 0; i < thread_rw_size; i++) {
+      ASSERT_EQ(output[i], verify_contents[i]);
+    }
+
+    verify_contents += thread_rw_size;
+    counter += thread_rw_size;
+  }
+}
+
+TEST_F(BufferTests, MultiThreadTest) {
+
+  int16_t contents[thread_read_len];
+  for (int i = 0; i < thread_read_len; i++) {
+    contents[i] = (rand() % 65536) - 32768;
+  }
+
+  std::thread writer(WriterThread, contents, q);
+  std::thread reader(ReaderThread, contents, q);
+
+  writer.join();
+  reader.join();
 }
