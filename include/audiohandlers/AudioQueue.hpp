@@ -4,6 +4,8 @@
  * 
  * spins up an i/o thread to handle audio decoding
  * while the system reads ahead
+ * 
+ * absolete :)
  */ 
 
 // spearing your son with a uranium pickaxe

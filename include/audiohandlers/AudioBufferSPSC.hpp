@@ -42,6 +42,7 @@ class AudioBufferSPSC {
     shared_write_(0),
     reader_thread_(pc_marker()),
     writer_thread_(pc_marker()),
+    read_marker_(0),
     readzone_(new BUFFER_UNIT[buffer_capacity_])
     {
       writer_thread_.safesize = buffer_capacity_;
@@ -59,6 +60,8 @@ class AudioBufferSPSC {
    *  The number of bytes which could be read.
    */ 
   size_t Peek(uint32_t count, BUFFER_UNIT*& output) {
+    // TODO: output param is inconsistent
+    //       might be ideal? depending on use cases but ich dont think so
     uint32_t len;
     if (reader_thread_.safesize < count) {
       // no guarantee that we have enough room to read -- check the atomic
@@ -106,10 +109,10 @@ class AudioBufferSPSC {
     // check safesize
     if (reader_thread_.safesize < count) {
       UpdateReaderThread();
-    }
 
-    if (reader_thread_.safesize < count) {
-      return nullptr; 
+      if (reader_thread_.safesize < count) {
+        return nullptr; 
+      }
     }
 
     // ample space
@@ -126,8 +129,32 @@ class AudioBufferSPSC {
 
     // update read atomic
     shared_read_.store(reader_thread_.position, std::memory_order_release);
+    read_marker_.fetch_add(count, std::memory_order_acq_rel);
 
     return readzone_;
+  }
+
+  /**
+   * A more flexible version of the read call which reads at most the number of items specified
+   * and passes through the queue accordingly.
+   * 
+   * Arguments:
+   *  - count, the maximum number of elements we want to read.
+   *  - items_read, an output parameter which will contain the number of items read.
+   * 
+   * Returns:
+   *  - A pointer to an array of queue entries containing the number of items specified
+   *    by items_read.
+   */ 
+  BUFFER_UNIT* ReadMaximum(uint32_t count, int* items_read) {
+    if (reader_thread_.safesize < count) {
+      UpdateReaderThread();
+    }
+    
+    BUFFER_UNIT* retval = Read(Min(count, reader_thread_.safesize));
+    *items_read = count;
+
+    return retval;
   }
 
   /**
@@ -177,6 +204,7 @@ class AudioBufferSPSC {
 
   pc_marker reader_thread_;
   std::atomic_uint32_t shared_read_;  // shared ptr for syncing read val
+  std::atomic_uint64_t read_marker_;  // tracks number of samples read thus far
   
   char CACHE_BUSTER[64];  // yall is playn -_-
 
@@ -244,6 +272,10 @@ class AudioBufferSPSC {
   uint32_t DoubleMask(uint32_t input) {
     // this one is from the reference source as well -- i dont know my bit math well
     return input & ((buffer_capacity_ << 1) - 1);
+  }
+
+  inline uint32_t Min(uint32_t a, uint32_t b) {
+    return (a < b ? a : b);
   }
 };  // class AudioBufferSPSC
 
