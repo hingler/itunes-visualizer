@@ -19,6 +19,9 @@ target_include_directories(timing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(DFT PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(vorbis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+set_target_properties(vorbis 
+                      PROPERTIES LINKER_LANGUAGE CXX)
+
 # add_executable(itunes-visualizer src/main.cpp)
 
 ### BUILD TESTS ###

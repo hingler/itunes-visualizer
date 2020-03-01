@@ -198,10 +198,17 @@ class AudioBufferSPSC {
     return (write == shared_read_.load(std::memory_order_acquire));
   }
 
+  uint32_t Capacity() {
+    return buffer_capacity_;
+  }
+
   ~AudioBufferSPSC() {
     delete[] buffer_;
     delete[] readzone_;
   }
+
+  void operator=(const AudioBufferSPSC &) = delete;
+  AudioBufferSPSC(const AudioBufferSPSC &) = delete;
 
  private:
   const uint32_t buffer_capacity_;  // max capacity of the buffer
