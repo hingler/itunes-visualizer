@@ -118,7 +118,7 @@ class AudioBufferSPSC {
     // ample space
     uint32_t masked_read = Mask(reader_thread_.position);
     for (int i = 0; i < count; i++) {
-      if (masked_read > buffer_capacity_) {
+      if (masked_read >= buffer_capacity_) {
         masked_read -= buffer_capacity_;
       }
       readzone_[i] = buffer_[masked_read++];
@@ -173,7 +173,7 @@ class AudioBufferSPSC {
 
     uint32_t masked_write = Mask(writer_thread_.position);
     for (int i = 0; i < count; i++) {
-      if (masked_write > buffer_capacity_) {
+      if (masked_write >= buffer_capacity_) {
         masked_write -= buffer_capacity_;
       }
       buffer_[masked_write++] = data[i];
@@ -196,6 +196,11 @@ class AudioBufferSPSC {
   uint32_t Empty() {
     uint32_t write = shared_write_.load(std::memory_order_acquire);
     return (write == shared_read_.load(std::memory_order_acquire));
+  }
+
+  ~AudioBufferSPSC() {
+    delete[] buffer_;
+    delete[] readzone_;
   }
 
  private:

@@ -10,10 +10,14 @@ enable_testing()
 # just add it thats all you do
 
 add_library(timing src/timing/timing.cpp)
-add_library(audio src/audiohandlers/DFT.cpp)
+add_library(DFT src/audiohandlers/DFT.cpp)
+add_library(vorbis src/audiohandlers/stb_vorbis.c
+                   src/audiohandlers/VorbisManager.cpp)
+
 
 target_include_directories(timing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(audio PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(DFT PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(vorbis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # add_executable(itunes-visualizer src/main.cpp)
 
@@ -57,7 +61,7 @@ set(test_dir ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 FILE(GLOB TESTFILES ${test_dir}/*.cpp)
 
 set(timingtest_deps timing)
-set(DFTtest_deps audio)
+set(DFTtest_deps DFT)
 set(SPSCtest_deps )
 
 foreach(TESTFILE ${TESTFILES})

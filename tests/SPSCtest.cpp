@@ -164,8 +164,8 @@ void ReaderThread(int16_t* verify_contents, AudioBufferSPSC<int16_t>* q) {
   while (counter < thread_read_len) {
     while ((output = q->Read(thread_rw_size)) == nullptr);
 
-    std::cout << "read " << thread_rw_size << " elements" << std::endl;
-    std::cout << q->Size() << std::endl;
+    // std::cout << "read " << thread_rw_size << " elements" << std::endl;
+    // std::cout << q->Size() << std::endl;
 
     for (int16_t i = 0; i < thread_rw_size; i++) {
       ASSERT_EQ(output[i], verify_contents[i]);
