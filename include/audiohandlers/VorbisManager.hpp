@@ -5,8 +5,9 @@
 #ifndef VORBIS_MANAGER_H_
 #define VORBIS_MANAGER_H_
 #include "audiohandlers/AudioBufferSPSC.hpp"
+#include "vorbis/stb_vorbis.h"
 #include <memory>
-#include <vector>
+#include <list>
 
 // a lot of this stuff is provided by the lib already
 // but the aim is to just make some c calls into cpp calls
@@ -20,15 +21,19 @@ class VorbisManager {
 
   // should be constructed with a file object generated from a vorbis stream
  public:
-  VorbisManager(char* filename);
+  /**
+   * Create a vorbis manager which reads from a given OGG file.
+   * Sets up a critical buffer and prepares itself to begin reading into it.
+   */  
+  VorbisManager(char* filename, int twopow);
   
   /**
-   * Creates the "critical buffer" for the manager, which should generally be passed
+   * Returns the "critical buffer" for the manager, which should generally be passed
    * to the audio callback. All writing calls will be synchronized with this buffer.
    * 
    * If the previous critical buffer is still active, returns nullptr.
    */ 
-  std::shared_ptr<AudioBufferSPSC<float>> CreateCriticalBuffer(int twopow);
+  std::shared_ptr<AudioBufferSPSC<float>> GetCriticalBuffer(int twopow);
   
   /**
    *  Constructs a new audio buffer on the heap which will receive
@@ -39,17 +44,21 @@ class VorbisManager {
    *  Must be freed by the user.
    */ 
   std::shared_ptr<AudioBufferSPSC<float>> GetBufferInstance(int twopow);
-  void StartWriteThread();
-  void StopWriteThread();
 
   /**
-   *  Returns the maximum size of 
+   *  Starts the write thread.
    */ 
-  int GetCriticalBufferMaxPower();
+  void StartWriteThread();
+  /**
+   *  Stops the write thread.
+   */ 
+  void StopWriteThread();
+
+  void operator=(const VorbisManager& m);
   ~VorbisManager();
 
  private:
-  std::vector<std::weak_ptr<AudioBufferSPSC<float>>> buffer_list_;
+  std::list<std::weak_ptr<AudioBufferSPSC<float>>> buffer_list_;
   std::weak_ptr<AudioBufferSPSC<float>> critical_buffer_;
   uint32_t critical_buffer_capacity_;
   stb_vorbis* audiofile_;
@@ -60,6 +69,14 @@ class VorbisManager {
 
   // troves thru the buffer vector and erases any expired entries
   void ClearFreedBuffers();
+
+  /**
+   *  Function called by our write thread
+   *  For now: all buffers are populated by the same thread
+   *  But if performance is an issue that can be rearranged (it probably wont be)
+   *  Idea: ensure 64 byte size on individual audio queues?
+   */ 
+  void WriteThreadFn(void* vorbis_inst);
 };
 
 // The AudioBuffer provides a convenient, low-footprint read/write structure

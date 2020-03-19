@@ -271,7 +271,6 @@ class AudioBufferSPSC {
     writer_thread_.safesize = buffer_capacity_ - MaskInclusive(writer_thread_.position - pos);
   }
 
-  // maybe remove
   /**
    * Mask the input to a range of 2 * the buffer length.
    * 
@@ -286,6 +285,9 @@ class AudioBufferSPSC {
     return input & ((buffer_capacity_ << 1) - 1);
   }
 
+  /**
+   * Shorthand for min
+   */ 
   inline uint32_t Min(uint32_t a, uint32_t b) {
     return (a < b ? a : b);
   }
