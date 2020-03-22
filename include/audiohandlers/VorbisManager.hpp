@@ -8,6 +8,8 @@
 #include "vorbis/stb_vorbis.h"
 #include <memory>
 #include <list>
+#include <mutex>
+#include <thread>
 
 // a lot of this stuff is provided by the lib already
 // but the aim is to just make some c calls into cpp calls
@@ -24,26 +26,24 @@ class VorbisManager {
   /**
    * Create a vorbis manager which reads from a given OGG file.
    * Sets up a critical buffer and prepares itself to begin reading into it.
+   * 
+   * Args:
+   *  - filename, the path associated with the filename you are opening
+   *  - twopow, the log_2 of the size of the desired buffer. Should keep as small as possible
    */  
   VorbisManager(char* filename, int twopow);
-  
-  /**
-   * Returns the "critical buffer" for the manager, which should generally be passed
-   * to the audio callback. All writing calls will be synchronized with this buffer.
-   * 
-   * If the previous critical buffer is still active, returns nullptr.
-   */ 
-  std::shared_ptr<AudioBufferSPSC<float>> GetCriticalBuffer(int twopow);
   
   /**
    *  Constructs a new audio buffer on the heap which will receive
    *  input from the manager, returning a shared pointer to it.
    * 
    *  All buffers created must be larger than the critical buffer.
+   *  If client attempts to create a buffer which is smaller than the critical buffer,
+   *  returns nullptr.
    * 
    *  Must be freed by the user.
    */ 
-  std::shared_ptr<AudioBufferSPSC<float>> GetBufferInstance(int twopow);
+  std::shared_ptr<AudioBufferSPSC<float>> CreateBufferInstance(int twopow);
 
   /**
    *  Starts the write thread.
@@ -54,12 +54,13 @@ class VorbisManager {
    */ 
   void StopWriteThread();
 
-  void operator=(const VorbisManager& m);
+  VorbisManager(VorbisManager&) = delete;
+  void operator=(const VorbisManager& m) = delete;
   ~VorbisManager();
 
  private:
   std::list<std::weak_ptr<AudioBufferSPSC<float>>> buffer_list_;
-  std::weak_ptr<AudioBufferSPSC<float>> critical_buffer_;
+  std::shared_ptr<AudioBufferSPSC<float>> critical_buffer_;
   uint32_t critical_buffer_capacity_;
   stb_vorbis* audiofile_;
 
@@ -67,8 +68,21 @@ class VorbisManager {
   unsigned int sample_rate_;
   int channel_count_;
 
+  std::thread write_thread_;
+
+  float* channel_buffers_;
+
+  // lock for buffer list
+  std::mutex buffer_list_lock;
+
   // troves thru the buffer vector and erases any expired entries
   void ClearFreedBuffers();
+
+  /**
+   *  The function which will populate our buffers when called
+   *  WriteThreadFn will perform some check to see if we can call this
+   */ 
+  void PopulateBuffers(uint32_t write_size);
 
   /**
    *  Function called by our write thread

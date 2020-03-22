@@ -94,6 +94,22 @@ class AudioBufferSPSC {
     return len;
   }
 
+  bool Skip(uint32_t count) {
+    if (reader_thread_.safesize < count) {
+      UpdateReaderThread();
+    }
+
+    if (reader_thread_.safesize < count) {
+      return false;
+    }
+
+    reader_thread_.position = MaskTwo(reader_thread_.position + count);
+    reader_thread_.safesize -= count;
+
+    shared_read_.store(reader_thread_.position, std::memory_order_release);
+    read_marker_.fetch_add(count, std::memory_order_acq_rel);
+  }
+
   /**
    * Attempt to read from the buffer and advance the cursor.
    * Returns a pointer if the memory requested exists, otherwise
@@ -187,25 +203,41 @@ class AudioBufferSPSC {
     return true;
   }
 
-  uint32_t Size() {
+  // functions to add:
+    // ForceWrite, which will guarantee that data is written again
+
+  uint32_t GetMaximumWriteSize() {
+    UpdateWriterThread();
+    return writer_thread_.safesize;
+  }
+
+  uint32_t Size() const {
     uint32_t size = shared_write_.load(std::memory_order_acquire);
     size -= shared_read_.load(std::memory_order_acquire);
     return MaskInclusive(size);
   }
 
-  uint32_t Empty() {
+  uint32_t Empty() const {
     uint32_t write = shared_write_.load(std::memory_order_acquire);
     return (write == shared_read_.load(std::memory_order_acquire));
   }
 
-  uint32_t Capacity() {
+  uint32_t Capacity() const {
     return buffer_capacity_;
+  }
+
+  uint32_t GetItemsRead() const {
+    return read_marker_.load(std::memory_order_acq_rel);
   }
 
   ~AudioBufferSPSC() {
     delete[] buffer_;
     delete[] readzone_;
   }
+
+  // implement an assign op which populates the local buffer
+  // with contents of another
+  // (so that synchro call can repop if necessary)
 
   void operator=(const AudioBufferSPSC &) = delete;
   AudioBufferSPSC(const AudioBufferSPSC &) = delete;
@@ -241,11 +273,11 @@ class AudioBufferSPSC {
    * Returns:
    *  - The inputted argument, masked to the width of the buffer capacity.
    */ 
-  uint32_t Mask(uint32_t input) {
+  uint32_t Mask(uint32_t input) const {
     return input & (buffer_capacity_ - 1);
   }
 
-  uint32_t MaskInclusive(uint32_t input) {
+  uint32_t MaskInclusive(uint32_t input) const {
     uint32_t masked_input = Mask(input);
     if (input != 0 && masked_input == 0) {
       // multiple of capacity
@@ -255,7 +287,7 @@ class AudioBufferSPSC {
     return masked_input;
   }
 
-  uint32_t MaskTwo(uint32_t input) {
+  uint32_t MaskTwo(uint32_t input) const {
     return input & ((buffer_capacity_ << 1) - 1);
   }
 

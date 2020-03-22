@@ -12,7 +12,8 @@ enable_testing()
 add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbis src/audiohandlers/stb_vorbis.c
-                   src/audiohandlers/VorbisManager.cpp)
+                   src/audiohandlers/VorbisManager.cpp
+                   src/audiohandlers/VorbisBufferSPSC.cpp)
 
 
 target_include_directories(timing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
@@ -54,9 +55,9 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
 # The gtest/gtest_main targets carry header search path
 # dependencies automatically when using CMake 2.8.11 or
 # later. Otherwise we have to add them here ourselves.
-if (CMAKE_VERSION VERSION_LESS 2.8.11)
-  include_directories("${gtest_SOURCE_DIR}/include")
-endif()
+# if (CMAKE_VERSION VERSION_LESS 2.8.11)
+#   include_directories("${gtest_SOURCE_DIR}/include")
+# endif()
 
 # Now simply link against gtest or gtest_main as needed. Eg
 set(test_dir ${CMAKE_CURRENT_SOURCE_DIR}/tests)
@@ -74,6 +75,16 @@ foreach(TESTFILE ${TESTFILES})
   target_link_libraries(${TESTNAME} gtest_main ${${TESTNAME}_deps})
   add_test(NAME ${TESTNAME} COMMAND ${TESTNAME})
 endforeach(TESTFILE)
+
+set(exp_dir ${CMAKE_CURRENT_SOURCE_DIR}/experiments)
+
+set(deps_dir ${CMAKE_CURRENT_SOURCE_DIR}/deps)
+
+add_subdirectory(${deps_dir}/portaudio)
+
+add_executable(portaudio_test ${exp_dir}/portaudioTest.cpp)
+target_include_directories(portaudio_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(portaudio_test portaudio)
 
 ### FINAL CONFIGS ###
 
