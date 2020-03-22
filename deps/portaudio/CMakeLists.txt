@@ -467,7 +467,7 @@ IF(NOT PA_OUTPUT_OSX_FRAMEWORK AND NOT PA_DISABLE_INSTALL)
 ENDIF()
 
 # Prepared for inclusion of test files
-OPTION(PA_BUILD_TESTS "Include test projects" OFF)
+OPTION(PA_BUILD_TESTS "Include test projects" ON)
 IF(PA_BUILD_TESTS)
   SUBDIRS(test)
 ENDIF()
