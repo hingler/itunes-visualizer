@@ -1,4 +1,5 @@
 #include "portaudio.h"
+#include "vorbis/stb_vorbis.h"
 #include <cstdlib>
 #include <iostream>
 #include <cmath>
@@ -6,6 +7,7 @@
 struct Period {
   float left_phase;
   float right_phase;
+  stb_vorbis* stream;
 };
 
 void RadWrap(float&);
@@ -40,11 +42,38 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
+  const PaDeviceInfo* deviceInfo;
+
+  for (int i = 0; i < numDevices; i++) {
+    deviceInfo = Pa_GetDeviceInfo(i);
+    std::cout << "device " << i << ": " << deviceInfo->name << std::endl;
+    std::cout << deviceInfo->defaultSampleRate << "Hz" << std::endl;
+  }
+
+  deviceInfo = Pa_GetDeviceInfo(1); // try it
+
+  PaStreamParameters outParams;
+  outParams.channelCount = deviceInfo->maxOutputChannels;
+
+  // note: this is specific to my machine and probably wont work
+  // we are just messing arond :)
+  outParams.device = 1; // well thats what it is
+  outParams.hostApiSpecificStreamInfo = NULL;
+  outParams.sampleFormat = paFloat32;
+  outParams.suggestedLatency = deviceInfo->defaultLowOutputLatency;
+
   std::cout << "devices available: " << numDevices << std::endl;
 
   PaStream* stream;   // file-like IO
-  Period data = {0.0f, 0.0f};
-  err = Pa_OpenDefaultStream(&stream, 0, 2, paFloat32, 48000, paFramesPerBufferUnspecified, TestCallback, &data);
+
+  // set up the vorbis
+  int errv;
+  stb_vorbis* vorb = stb_vorbis_open_filename("../experiments/flap_jack_scream.ogg", &errv, NULL);
+
+
+
+  Period data = {0.0f, 0.0f, vorb};
+  err = Pa_OpenStream(&stream, NULL, &outParams, 44100, paFramesPerBufferUnspecified, paNoFlag, TestCallback, &data);
   if (!err == paNoError) {
     PrintErrInfo(err);
     return EXIT_FAILURE;
@@ -56,7 +85,7 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
   // let playback continue
-  Pa_Sleep(2000);
+  Pa_Sleep(2500);
   // end the stream
   err = Pa_StopStream(stream);
   if (!err == paNoError) {
@@ -95,20 +124,12 @@ static int TestCallback(  const void* inputBuffer,
   float* output = reinterpret_cast<float*>(outputBuffer);
 
   // frame: single sample across all speakers
-  for (int i = 0; i < frameCount; i++) {
-    *output++ = sin(p->left_phase) * 0.25f;
-    *output++ = sin(p->right_phase) * 0.25f;
-    p->left_phase += .06f;
-    p->right_phase += .065f;
-    RadWrap(p->left_phase);
-    RadWrap(p->right_phase);
-  }
-
+  stb_vorbis_get_samples_float_interleaved(p->stream, 2, output, frameCount * 2);
   return 0;
 }
 
 void RadWrap(float& in) {
-  if (in >= M_2_PI) {
-    in -= M_2_PI;
+  if (in >= M_PI * 2) {
+    in -= M_PI * 2;
   }
 }
