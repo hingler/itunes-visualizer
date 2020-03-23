@@ -85,7 +85,7 @@ add_subdirectory(${deps_dir}/portaudio)
 add_executable(portaudio_test ${exp_dir}/portaudioTest.cpp
                               ${CMAKE_CURRENT_SOURCE_DIR}/src/audiohandlers/stb_vorbis.c)
 target_include_directories(portaudio_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(portaudio_test portaudio)
+target_link_libraries(portaudio_test portaudio DFT)
 
 ### FINAL CONFIGS ###
 

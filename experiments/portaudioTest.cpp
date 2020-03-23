@@ -1,8 +1,12 @@
 #include "portaudio.h"
 #include "vorbis/stb_vorbis.h"
+#include "audiohandlers/DFT.hpp"
 #include <cstdlib>
 #include <iostream>
 #include <cmath>
+
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 struct Period {
   float left_phase;
@@ -84,7 +88,7 @@ int main(int argc, char** argv) {
 
 
   Period data = {0.0f, 0.0f, vorb};
-  err = Pa_OpenStream(&stream, NULL, &outParams, info.sample_rate, paFramesPerBufferUnspecified, paNoFlag, TestCallback, &data);
+  err = Pa_OpenStream(&stream, NULL, &outParams, info.sample_rate, 1024, paNoFlag, TestCallback, &data);
   if (!err == paNoError) {
     PrintErrInfo(err);
     return EXIT_FAILURE;
@@ -149,6 +153,25 @@ static int TestCallback(  const void* inputBuffer,
 
   // frame: single sample across all speakers
   stb_vorbis_get_samples_float_interleaved(p->stream, 2, output, frameCount * 2);
+  float* realOut;
+  float* imagOut;
+  dft::CalculateDFT(output, &realOut, &imagOut, 1024);
+  float* amp = dft::GetAmplitudeArray(realOut, imagOut, 1024);
+
+  winsize size;
+  ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+  for (int h = 0; h < size.ws_row; h++) {
+    int buf = (128 / size.ws_row) * h;
+    for (int i = 0; i < amp[buf]; i++) {
+      std::cout << '=';
+    }
+    std::cout << ']' << std::endl;
+  }
+
+  delete[] realOut;
+  delete[] imagOut;
+  delete[] amp;
+
   return 0;
 }
 
