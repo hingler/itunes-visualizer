@@ -29,3 +29,6 @@
   - communication should have two channels: for instance, when we run out of "file" to read, we should send a message back to the callback thread notifying it that we can close the stream once the buffer runs dry.
 
   - put a lock on reading/altering the size of the buffer
+
+  vorb manager should take care of the pa stream as well as the write thread.
+  critical thread will therefore be sanctioned off and inaccessible, only to the buffer itself

@@ -26,6 +26,8 @@
 #include <cstdint>
 #include <cmath>
 
+#include <iostream>
+
 struct pc_marker {
   pc_marker() : position(0), safesize(0) { }
   uint32_t position; // the index which the marker points to (masked 2x)
@@ -59,7 +61,7 @@ class AudioBufferSPSC {
    * Returns:
    *  The number of bytes which could be read.
    */ 
-  size_t Peek(uint32_t count, BUFFER_UNIT*& output) {
+  size_t Peek(uint32_t count, BUFFER_UNIT** output) {
     // TODO: output param is inconsistent
     //       might be ideal? depending on use cases but ich dont think so
     uint32_t len;
@@ -90,7 +92,7 @@ class AudioBufferSPSC {
       readzone_[i] = buffer_[masked_read++];
     }
 
-    output = readzone_;
+    *output = readzone_;
     return len;
   }
 
@@ -174,6 +176,30 @@ class AudioBufferSPSC {
   }
 
   /**
+   *  Synchronizes the audio buffer to a given sample number.
+   *  Note: buffer is emptied if sample_num is larget than the number of entries currently contained
+   */ 
+  void Synchronize(uint32_t sample_num) {
+    int count = sample_num - read_marker_.load(std::memory_order_acquire);
+    // ensure that we have enough space to leap
+    if (count > 0) {
+      if (count > reader_thread_.safesize) {
+        UpdateReaderThread();
+      }
+
+      // wipes the buffer if necessary
+      int offset = Min(reader_thread_.safesize, count);
+      // return whether or not the buffer has been emptied
+
+
+      reader_thread_.safesize -= offset;
+      reader_thread_.position = MaskTwo(reader_thread_.position + offset);
+      shared_read_.store(reader_thread_.position, std::memory_order_release);
+      read_marker_.fetch_add(count, std::memory_order_release);
+    }
+  }
+
+  /**
    * Write to the buffer.
    * Returns whether or not the write was successful --
    * false if not enough room, true otherwise.
@@ -239,7 +265,8 @@ class AudioBufferSPSC {
   // with contents of another
   // (so that synchro call can repop if necessary)
 
-  void operator=(const AudioBufferSPSC &) = delete;
+  // the best we have in this case is a skip operation
+  void operator=(const AudioBufferSPSC& other) = delete;
   AudioBufferSPSC(const AudioBufferSPSC &) = delete;
 
  private:

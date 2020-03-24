@@ -21,7 +21,7 @@ VorbisManager::VorbisManager(char* filename, int twopow) : critical_buffer_capac
   sample_rate_ = info.sample_rate;
   channel_count_ = info.channels;
 
-  critical_buffer_ = FloatBufPtr(new FloatBuf(twopow));
+  critical_buffer_ = new FloatBuf(twopow);
 
   // initialize the channel buffer, expecting to store max number of channels
   channel_buffers_[channel_count_ * static_cast<int>(pow(2, twopow))];
