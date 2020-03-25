@@ -6,25 +6,41 @@
 #include <algorithm>
 #include <cmath>
 
+// buffer w/ float template
 typedef AudioBufferSPSC<float> FloatBuf;
+// shared buffer ptr
 typedef std::shared_ptr<FloatBuf> FloatBufPtr;
 
-bool BufferIsExpired(std::weak_ptr<FloatBuf>);
+// used to pass lambda expressions in as callback
+typedef std::function<void(FloatBuf*)> BufferCallback;
 
-VorbisManager::VorbisManager(char* filename, int twopow) : critical_buffer_capacity_(twopow),
+VorbisManager::VorbisManager(int twopow) : critical_buffer_capacity_(pow(2, twopow)),
                                                            buffer_list_() {
-  int error_detect;
-
-  audiofile_ = stb_vorbis_open_filename(filename, &error_detect, NULL);
-
-  stb_vorbis_info info = stb_vorbis_get_info(audiofile_);
-  sample_rate_ = info.sample_rate;
-  channel_count_ = info.channels;
-
+  
+  // set to null initially
+  // this is nonideal but its fine
+  // plus its more consistent
+  audiofile_ = NULL;
   critical_buffer_ = new FloatBuf(twopow);
 
   // initialize the channel buffer, expecting to store max number of channels
   channel_buffers_[channel_count_ * static_cast<int>(pow(2, twopow))];
+}
+
+bool VorbisManager::SetFilename(char* filename) {
+  // if this errors out, how do we handle it?
+  int error_detect;
+  audiofile_ = stb_vorbis_open_filename(filename, &error_detect, NULL);
+
+  if (audiofile_ == NULL) {
+    // failed for some reason
+    // maybe make an error bit accessible?
+    return false;
+  }
+
+  stb_vorbis_info info = stb_vorbis_get_info(audiofile_);
+  sample_rate_ = info.sample_rate;
+  channel_count_ = info.channels;
 }
 
 FloatBufPtr VorbisManager::CreateBufferInstance(int twopow) {
@@ -33,7 +49,8 @@ FloatBufPtr VorbisManager::CreateBufferInstance(int twopow) {
     return nullptr;
   }
 
-  FloatBufPtr buf_ptr(new FloatBuf(twopow));
+  // this sounds ok i think
+  FloatBufPtr buf_ptr = std::make_shared<FloatBuf>(twopow);
   buffer_list_lock.lock();
   buffer_list_.push_front(std::weak_ptr<FloatBuf>(buf_ptr));
   buffer_list_lock.unlock();
@@ -41,82 +58,85 @@ FloatBufPtr VorbisManager::CreateBufferInstance(int twopow) {
   return buf_ptr;
 }
 
-void VorbisManager::PopulateBuffers(uint32_t write_size) {
-  stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, channel_buffers_, write_size);
+void VorbisManager::StartWriteThread() {
+
+  // TODO: ADD ERROR CHECKING ON ALL OF THESE CALLS!!!
+
+  // wipe the buffers as well as any others that have been spawned
+  if (audiofile_ == NULL) {
+    // no file created
+    return;
+  }
+  critical_buffer_->Clear();
+  auto callback = [](FloatBuf* buf) { buf->Clear(); };
+  EraseOrCallback(callback);
+
+  // seek to the start of the file
+  stb_vorbis_seek_start(audiofile_);
+
+  int samples_read = stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, channel_buffers_, critical_buffer_capacity_);
+
+  PopulateBuffers(critical_buffer_capacity_);
+
+  // start up write thread, passing the containing class as arg
+  write_thread_ = std::thread(&VorbisManager::WriteThreadFn, this);
+}
+
+bool VorbisManager::PopulateBuffers(uint32_t write_size) {
+  // get write size
+  if (write_size < critical_buffer_->GetMaximumWriteSize()) {
+    return false;
+  }
 
   // this is the only thread so it should be good
   critical_buffer_->Write(channel_buffers_, write_size);
+  auto callback = [this, write_size](FloatBuf* buf) { buf->Write(channel_buffers_, write_size); };
 
+  EraseOrCallback(callback);
+  return true;
+}
+
+void VorbisManager::WriteThreadFn() {
+  // attempt to fill the buffer when it drops below 50% capacity
+  uint32_t write_threshold = critical_buffer_capacity_ / 2;
+  int samples_read;
+  for (;;) {
+    // write the next set of samples to the buffer
+    samples_read = stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, channel_buffers_, write_threshold);
+    if (!samples_read) {
+      // buffer is exhausted
+      break;
+    }
+    while (critical_buffer_->GetMaximumWriteSize() < write_threshold);
+    // its good
+    VorbisManager::PopulateBuffers(write_threshold);
+  }
+
+}
+
+// Private Functions
+void VorbisManager::EraseOrCallback(BufferCallback) {
   std::shared_ptr<FloatBuf> ptr;
+  // lock list
   buffer_list_lock.lock();
   auto itr = buffer_list_.begin();
   while (itr != buffer_list_.end()) {
     ptr = itr->lock();
     if (itr->expired()) {
-      // ptr is invalid
+      // expired -- toss it
       itr = buffer_list_.erase(itr);
     } else {
-      // ptr is valid
-      ptr->Write(channel_buffers_, write_size);
+      // perform callback func
+      BufferCallback(itr);
     }
   }
+  buffer_list_lock.unlock();
 }
-
-void VorbisManager::WriteThreadFn(void* vorbis_inst) {
-  // check to see if there's room in the critical buffer
-  // the vorbis callback should be used to extract some playback data
-  for (;;) {
-    uint32_t bytes_remaining = critical_buffer_->GetMaximumWriteSize();
-    if (bytes_remaining > 0) {
-      // inconsistent but want to make sure this is carried over properly
-      this->PopulateBuffers(bytes_remaining);
-    }
-  }
-}
-
-// callback has a data function
-
-// we can use it to estimate where we are
-
-
-
-// TODO: maybe write some portaudio tests elsewhere and check it out
-// TODO: maybe do that instead of this to get a feel for how the problem solving will go
-
-
-
-// simple synchronization class* which links a spawned buffer to the parent VM
-// the VM retains control in this case by creating a per-buffer lock
-
-// critical buffer reads in from file to full capacity
-// other buffers are filled in equivalently
-
-// the wrapper class should provide some means of ensuring that we have read to the
-// same point as the manager
-
-// for instance, we could have a function, Synchronize(), which could be called (for instance)
-// before reading a section
-
-// furthermore, a delay could be taken into account which, given the sample rate and delay,
-// attempts to align things a bit better
-
-// a single thread maintains read control -- a "synchronize" call should update the buffer
-
-// note: our critical buffer is read in chunks -- we should go by the sample rate rather than
-// its state, but use the state of the critical buffer as a reference point i.e. if we desync
-// considerably, something is clearly awry
-
-// in this case we would need to wrap the functionality of the buffer
-// to keep track of how far it's read
-
 
 VorbisManager::~VorbisManager() {
   StopWriteThread();    // ensure the write thread doesn't continue on without us
   stb_vorbis_close(audiofile_);
 }
 
-// for ClearFreedBuffers
-bool BufferIsExpired(std::weak_ptr<FloatBuf> buf) {
-  return buf.expired();
-}
+// TimeInfo
 

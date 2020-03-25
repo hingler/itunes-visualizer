@@ -6,12 +6,14 @@
 #define VORBIS_MANAGER_H_
 #include "audiohandlers/AudioBufferSPSC.hpp"
 #include "vorbis/stb_vorbis.h"
+#include "portaudio.h"
 
 #include <memory>
 #include <list>
 #include <mutex>
 #include <thread>
 #include <chrono>
+#include <functional>
 
 // a lot of this stuff is provided by the lib already
 // but the aim is to just make some c calls into cpp calls
@@ -30,10 +32,14 @@ class VorbisManager {
    * Sets up a critical buffer and prepares itself to begin reading into it.
    * 
    * Args:
-   *  - filename, the path associated with the filename you are opening
    *  - twopow, the log_2 of the size of the desired buffer. Should keep as small as possible
    */  
-  VorbisManager(char* filename, int twopow);
+  VorbisManager(int twopow);
+
+  /**
+   *  Assigns a file to the vorbis manager
+   */ 
+  bool SetFilename(char* filename);
   
   /**
    *  Constructs a new audio buffer on the heap which will receive
@@ -56,17 +62,18 @@ class VorbisManager {
    */ 
   void StopWriteThread();
 
+  /**
+   *  If a thread is running, returns a pointer to the TimeInfo associated with the current file.
+   *  
+   */ 
+  const TimeInfo* GetTimeInfo();
+
   VorbisManager(VorbisManager&) = delete;
   void operator=(const VorbisManager& m) = delete;
   ~VorbisManager();
 
  private:
   std::list<std::weak_ptr<AudioBufferSPSC<float>>> buffer_list_;
-  // should create a struct which encompasses this
-  // we need to pass it to our callback
-  // create a TimeInfo struct which tracks time passed thus far
-  // create a struct packet which contains that + crit buffer
-  // the TimeInfo can be interpreted here
   AudioBufferSPSC<float>* critical_buffer_;
   uint32_t critical_buffer_capacity_;
   stb_vorbis* audiofile_;
@@ -82,14 +89,15 @@ class VorbisManager {
   // lock for buffer list
   std::mutex buffer_list_lock;
 
-  // troves thru the buffer vector and erases any expired entries
-  void ClearFreedBuffers();
-
   /**
    *  The function which will populate our buffers when called
    *  WriteThreadFn will perform some check to see if we can call this
+   * 
+   *  Populates from channel_buffers_. This must be populated prior.
+   * 
+   *  write_size : the number of elements we are writing
    */ 
-  void PopulateBuffers(uint32_t write_size);
+  bool PopulateBuffers(uint32_t write_size);
 
   /**
    *  Function called by our write thread
@@ -97,12 +105,28 @@ class VorbisManager {
    *  But if performance is an issue that can be rearranged (it probably wont be)
    *  Idea: ensure 64 byte size on individual audio queues?
    */ 
-  void WriteThreadFn(void* vorbis_inst);
+  void WriteThreadFn();
+
+  /**
+   *  Used internally to handle pretty much any case in which we need to
+   *  transform our list of buffers.
+   * 
+   *  Iterates through all buffers available, checking if they are still valid.
+   *  If they are, run the callback.
+   *  If not, erase them.
+   */ 
+  void EraseOrCallback(std::function<void(AudioBufferSPSC<float>*)>);
 
   /**
    *  Callback function passed to PortAudio
-   */ 
-};
+   */
+  static void PaCallback( const void* inputBuffer,
+                          void* outputBuffer,
+                          unsigned long frameCount,
+                          const PaStreamCallbackTimeInfo* timeInfo,
+                          PaStreamCallbackFlags statusFlags,
+                          void* userData  );
+};  // class VorbisManager
 
 // The AudioBuffer provides a convenient, low-footprint read/write structure
 // which minimizes read footprint
@@ -127,6 +151,11 @@ class VorbisManager {
 // since our other buffers are bound to be read at roughly the same rate,
 // we'll empty them roughly accordingly, but add some buffer space in case it gets ahead or behind.
 
+/**
+ *  A TimeInfo provides some stats on the currently-running thread.
+ *  The idea is that this should allow a client to synchronize themselves
+ *  with the thread currently being read.
+ */ 
 struct TimeInfo {
  public:
   /**
@@ -137,13 +166,12 @@ struct TimeInfo {
   /**
    * Estimates which sample we should be reading from
    */ 
-  int GetCurrentSample();
+  int GetCurrentSample() const;
  private:
   std::chrono::time_point<std::chrono::high_resolution_clock> playback_epoch_;
     // playback start point
   int sample_offset_;
   const int sample_rate_;
-    // audio latency should be low enough to make this unnecessary ish
 };
 
 #endif  // VORBIS_MANAGER_H_

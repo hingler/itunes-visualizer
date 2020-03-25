@@ -224,11 +224,14 @@ void WriteThread(BufferPair* buf, uint32_t contents[]) {
 
     int max_read;
     do {
+      // write thread snags read value for the time being and waits for it to get updated
       max_read = buf->crit->GetMaximumWriteSize();
     } while (max_read == 0);
     // attempts to write beyond buffer end
     max_read = (max_read > (contents_length - offset) ? (contents_length - offset) : max_read);
+    // write to all buffers
     while (!buf->crit->Write(contents + offset, max_read));
+    // slight delay in populating subsequent buffers, but we should not worry about it
     // std::cout << "wrote " << max_read << " samples to crit!" << std::endl;
     buf->aux->Write(contents + offset, max_read);
     // std::cout << "wrote " << max_read << " samples to aux!" << std::endl;
@@ -258,9 +261,12 @@ void ReadThread(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp time,
 
     seek_sample_last = seek_sample;
 
+    // grabs write until it updates
     while (buf->Size() == 0);
+    // once it updates, sync
     buf->Synchronize(seek_sample);
     int read_size;
+    // peek at the data that's there
     do {
       read_size = buf->Peek(1024, &data);
       // end of buffer: no discerning factor
@@ -299,7 +305,6 @@ TEST(ThreadBufferTest, MultiThreadVoyage) {
    * however, if we make the sync call before we have even written, it fucks everything up
    * 
    */ 
-  // std::this_thread::sleep_for(std::chrono::milliseconds(5));
   std::thread reader_one(ReadThread, buf.crit, contents, buf.pt, 1);
   std::thread reader_two(ReadThread, buf.aux, contents, buf.pt, 2);
 

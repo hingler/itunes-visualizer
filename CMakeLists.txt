@@ -87,6 +87,8 @@ add_executable(portaudio_test ${exp_dir}/portaudioTest.cpp
 target_include_directories(portaudio_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(portaudio_test portaudio DFT)
 
+target_link_libraries(vorbis portaudio)
+
 ### FINAL CONFIGS ###
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

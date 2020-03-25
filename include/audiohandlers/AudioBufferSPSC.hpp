@@ -204,7 +204,7 @@ class AudioBufferSPSC {
    * Returns whether or not the write was successful --
    * false if not enough room, true otherwise.
    */ 
-  bool Write(BUFFER_UNIT* data, uint32_t count) {
+  bool Write(const BUFFER_UNIT* data, uint32_t count) {
     if (writer_thread_.safesize < count) {
       UpdateWriterThread();
     }
@@ -229,6 +229,19 @@ class AudioBufferSPSC {
     return true;
   }
 
+  /**
+   *  Wipes the contents of the queue. Not thread safe.
+   */ 
+  void Clear() {
+    writer_thread_.position = 0;
+    reader_thread_.position = 0;
+    writer_thread_.safesize = buffer_capacity_;
+    reader_thread_.safesize = 0;
+    shared_read_.store(0);    // not worried about perofrmant memory order
+    shared_write_.store(0);
+    read_marker_.store(0);    // wipe history as well
+  }
+
   // functions to add:
     // ForceWrite, which will guarantee that data is written again
 
@@ -244,6 +257,7 @@ class AudioBufferSPSC {
   }
 
   uint32_t Empty() const {
+    // eesh
     uint32_t write = shared_write_.load(std::memory_order_acquire);
     return (write == shared_read_.load(std::memory_order_acquire));
   }
@@ -314,6 +328,15 @@ class AudioBufferSPSC {
     return masked_input;
   }
 
+  /**
+   * Mask the input to a range of 2 * the buffer length.
+   * 
+   * Arguments:
+   *  - input, the value we are masking.
+   * 
+   * Returns:
+   *  - masked value
+   */ 
   uint32_t MaskTwo(uint32_t input) const {
     return input & ((buffer_capacity_ << 1) - 1);
   }
@@ -328,20 +351,6 @@ class AudioBufferSPSC {
   void UpdateWriterThread() {
     uint32_t pos = shared_read_.load(std::memory_order_acquire);
     writer_thread_.safesize = buffer_capacity_ - MaskInclusive(writer_thread_.position - pos);
-  }
-
-  /**
-   * Mask the input to a range of 2 * the buffer length.
-   * 
-   * Arguments:
-   *  - input, the value we are masking.
-   * 
-   * Returns:
-   *  - masked value
-   */ 
-  uint32_t DoubleMask(uint32_t input) {
-    // this one is from the reference source as well -- i dont know my bit math well
-    return input & ((buffer_capacity_ << 1) - 1);
   }
 
   /**
