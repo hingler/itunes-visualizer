@@ -94,12 +94,13 @@ class VorbisManager {
    * Args:
    *  - twopow, the log_2 of the size of the desired buffer. Should keep as small as possible
    */  
-  VorbisManager(int twopow);
+  VorbisManager(int twopow, char* filename);
+  VorbisManager(int twopow, stb_vorbis* vorbis_file);
 
   /**
    *  Assigns a file to the vorbis manager
    */ 
-  bool SetFilename(char* filename);
+  bool ManagerIsValid();
   
   /**
    *  Constructs a new audio buffer on the heap which will receive

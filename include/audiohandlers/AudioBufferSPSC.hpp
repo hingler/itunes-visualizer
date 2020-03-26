@@ -48,25 +48,33 @@
 // And rewrite the whole thing
 // Call it "SPSCMultiChannelAudioBuffer"
 
+// I wish there was a cleaner way to inherit some of the private behavior but whatever :/
+// possibly: move it to a separate inherited header, make all of the functions pub,
+//           and inherit w private modif?
+
 struct pc_marker {
   pc_marker() : position(0), safesize(0) { }
   uint32_t position; // the index which the marker points to (masked 2x)
   uint32_t safesize;  // minimum number of elements which are guaranteed to be available
 };
 
+// default: interleaved
+// chunked: separate by channel
+
+// only one should be used -- behavior is undefined if mixing
 template <typename BUFFER_UNIT>
 class AudioBufferSPSC {
  public:
   AudioBufferSPSC(int twopow, int channel_count = 1) :
     channel_count_(channel_count),
-    buffer_capacity_(pow(2, twopow)),
-    buffer_(new BUFFER_UNIT[buffer_capacity_ * channel_count_]),
+    buffer_capacity_(pow(2, twopow) * channel_count_),
+    buffer_(new BUFFER_UNIT[buffer_capacity_]),
     shared_read_(0),
     shared_write_(0),
     reader_thread_(pc_marker()),
     writer_thread_(pc_marker()),
     read_marker_(0),
-    readzone_(new BUFFER_UNIT[buffer_capacity_ * channel_count_])
+    readzone_(new BUFFER_UNIT[buffer_capacity_])
     {
       writer_thread_.safesize = buffer_capacity_;
     }
@@ -117,6 +125,53 @@ class AudioBufferSPSC {
     return len;
   }
 
+  /**
+   *  Returns samples in a "chunked" format, separating channels into individual buffers.
+   *  If used in conjunction with the default "interleaved" formats, behavior is undefined.
+   * 
+   *  Arguments:
+   *    - framecount, the number of samples read from each channel.
+   *    - output, a float pointer array passed in by the client. Must have sufficient space
+   *      necessary to contain at least (channel_count_) items.
+   *  Returns:
+   *    - The number of frames read.
+   */ 
+  size_t Peek_Chunked(uint32_t framecount, BUFFER_UNIT*** output) {
+    // assume that we are on a channel boundary
+    uint32_t len;
+    uint32_t count = framecount * channel_count_;
+    if (reader_thread_.safesize < count) {
+      UpdateReaderThread();
+    }
+
+    if (reader_thread_.safesize < count) {
+      len = reader_thread_.safesize / channel_count_;
+    } else {
+      len = framecount;
+    }
+    // general:
+      // use our buffer, on particular intervals which will be consistent
+      // we cannot change the channel count as it is tied to our buffer size
+      // read into offset positions
+      // return pointers to those offset positions
+    RefreshChannelZone();
+
+    uint32_t masked_read = Mask(reader_thread_.position);
+
+    for (int i = 0; i < len; i++) {
+      for (int j = 0; j < channel_count_; j++) {
+        if (masked_read >= buffer_capacity_) {
+          masked_read -= buffer_capacity_;
+        }
+        channelzone_[j][i] = buffer_[masked_read];
+      }
+    }
+
+    *output = channelzone_;
+
+    return len;
+  }
+
   bool Skip(uint32_t count) {
     if (reader_thread_.safesize < count) {
       UpdateReaderThread();
@@ -133,6 +188,10 @@ class AudioBufferSPSC {
     read_marker_.fetch_add(count, std::memory_order_acq_rel);
   }
 
+  bool Skip_Chunked(uint32_t framecount) {
+    return Skip(framecount * channel_count_);
+  }
+
   /**
    * Attempt to read from the buffer and advance the cursor.
    * Returns a pointer if the memory requested exists, otherwise
@@ -143,7 +202,7 @@ class AudioBufferSPSC {
    * 
    * Returns:
    *  - a R/W pointer to the read data.
-   */ 
+   */
   BUFFER_UNIT* Read(uint32_t count) {
     // check safesize
     if (reader_thread_.safesize < count) {
@@ -171,6 +230,37 @@ class AudioBufferSPSC {
     read_marker_.fetch_add(count, std::memory_order_acq_rel);
 
     return readzone_;
+  }
+
+  BUFFER_UNIT** Read_Chunked(uint32_t framecount) {
+    int count = framecount * channel_count_;
+    if (reader_thread_.safesize < count) {
+      UpdateReaderThread();
+    }
+
+    if (reader_thread_.safesize < count) {
+      return nullptr;
+    }
+
+    RefreshChannelZone();
+
+    uint32_t masked_read = Mask(reader_thread_.position);
+    for (int i = 0; i < framecount; i++) {
+      for (int j = 0; j < channel_count_; j++) {
+        if (masked_read >= buffer_capacity_) {
+          masked_read -= buffer_capacity_;
+        }
+        channelzone_[j][i] = buffer_[masked_read];
+      }
+    }
+
+    reader_thread_.position = MaskTwo(reader_thread_.position + count);
+    reader_thread_.safesize -= count;
+
+    shared_read_.store(reader_thread_.position, std::memory_order_release);
+    read_marker_.fetch_add(count, std::memory_order_acq_rel);
+
+    return channelzone_;
   }
 
   /**
@@ -218,6 +308,10 @@ class AudioBufferSPSC {
       shared_read_.store(reader_thread_.position, std::memory_order_release);
       read_marker_.fetch_add(count, std::memory_order_release);
     }
+  }
+
+  void Synchronize_Chunked(uint32_t frame_num) {
+    Synchronize(frame_num * channel_count_);
   }
 
   /**
@@ -310,6 +404,11 @@ class AudioBufferSPSC {
   const uint32_t buffer_capacity_;  // max capacity of the buffer
   BUFFER_UNIT* buffer_;   // pointer to internal buffer
 
+  // a safe readzone we can use to avoid memory allocation
+  // not limited by pow2 restriction!
+  BUFFER_UNIT* readzone_;   // read space which can be read/modified by read thread
+  BUFFER_UNIT** channelzone_; // space allocated for per-channel pointers
+
   pc_marker reader_thread_;
   std::atomic_uint32_t shared_read_;  // shared ptr for syncing read val
   std::atomic_uint64_t read_marker_;  // tracks number of samples read thus far
@@ -325,9 +424,6 @@ class AudioBufferSPSC {
   // even better: if the goal is an fft printout, we can rely on an atomic int to track sample count,
   // and read a set size from that ring buffer, only advancing when necessary
 
-  // a safe readzone we can use to avoid memory allocation
-  // not limited by pow2 restriction!
-  BUFFER_UNIT* readzone_;   // read space which can be read/modified by read thread
 
   /**
    * Mask a given value based on the length of the buffer.
@@ -376,7 +472,13 @@ class AudioBufferSPSC {
     uint32_t pos = shared_read_.load(std::memory_order_acquire);
     writer_thread_.safesize = buffer_capacity_ - MaskInclusive(writer_thread_.position - pos);
   }
-
+  
+  void RefreshChannelZone() {
+    int per_channel_capacity = (buffer_capacity_ / channel_count_);
+    for (int i = 0; i < channel_count_; i++) {
+      channelzone_[i] = readzone_ + (i * per_channel_capacity);
+    }
+  }
   /**
    * Shorthand for min
    */ 

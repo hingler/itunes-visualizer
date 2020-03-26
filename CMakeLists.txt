@@ -11,9 +11,7 @@ enable_testing()
 
 add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
-add_library(vorbis src/audiohandlers/stb_vorbis.c
-                   src/audiohandlers/VorbisManager.cpp
-                   src/audiohandlers/VorbisBufferSPSC.cpp)
+add_library(vorbis src/audiohandlers/stb_vorbis.c)
 
 
 target_include_directories(timing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

@@ -1,4 +1,4 @@
-#include "audiohandlers/VorbisManager.hpp"
+#include "audiohandlers/VorbisManagerOld.hpp"
 #include "audiohandlers/AudioBufferSPSC.hpp"
 
 #include "vorbis/stb_vorbis.h"
@@ -13,45 +13,64 @@ typedef std::shared_ptr<FloatBuf> FloatBufPtr;
 // used to pass lambda expressions in as callback
 typedef std::function<void(FloatBuf*)> BufferCallback;
 
-// TODO: Initialize/Terminate PA, etc etc
+// TODO: A VorbisManager should be bound to at most a single file
+// move that into the constructor and just have some checks in place if the audio buffer is null
+// in this case: we can verify whether the file inputted is correct
+VorbisManager::VorbisManager(int twopow, char* filename) : critical_buffer_capacity_(pow(2, twopow)),
+                                                           run_thread_(false) {
 
-VorbisManager::VorbisManager(int twopow) : critical_buffer_capacity_(pow(2, twopow)),
-                                           run_thread_(false) {
-  // set to null initially
-  // this is nonideal but its fine
-  // plus its more consistent
-  audiofile_ = NULL;
+  int error_detect;
+  audiofile_ = stb_vorbis_open_filename(filename, &error_detect, NULL);
+  if (audiofile_ != NULL) {
+    stb_vorbis_info info = stb_vorbis_get_info(audiofile_);
+    sample_rate_ = info.sample_rate;
+    channel_count_ = info.channels;
+
+    info_.SetSampleRate(info.sample_rate);
+  }
+  
+  critical_buffer_ = new FloatBuf(twopow);
+
+  // initialize the channel buffer, expecting to store max number of channels
+  channel_buffers_ = new float[channel_count_ * static_cast<int>(pow(2, twopow))];
+
+}
+
+VorbisManager::VorbisManager(int twopow, stb_vorbis* vorbis_file) : critical_buffer_capacity_(pow(2, twopow)),
+                                                                    run_thread_(false) {
+  if (vorbis_file != NULL) {
+    stb_vorbis_info info = stb_vorbis_get_info(audiofile_);
+    sample_rate_ = info.sample_rate;
+    channel_count_ = info.channels;
+
+    info_.SetSampleRate(info.sample_rate);
+  }
+
+  audiofile_ = vorbis_file;
+
   critical_buffer_ = new FloatBuf(twopow);
 
   // initialize the channel buffer, expecting to store max number of channels
   channel_buffers_ = new float[channel_count_ * static_cast<int>(pow(2, twopow))];
 }
 
-bool VorbisManager::SetFilename(char* filename) {
-  if (run_thread_.load(std::memory_order_acquire)) {
-    // oop
-    return false;
-  }
-
-  int error_detect;
-  audiofile_ = stb_vorbis_open_filename(filename, &error_detect, NULL);
-
-  if (audiofile_ == NULL) {
-    // failed for some reason
-    // maybe make an error bit accessible?
-    return false;
-  }
-
-  stb_vorbis_info info = stb_vorbis_get_info(audiofile_);
-  sample_rate_ = info.sample_rate;
-  channel_count_ = info.channels;
-
-  info_.SetSampleRate(info.sample_rate);
-
-  return true;
+bool VorbisManager::ManagerIsValid() {
+  return (audiofile_ != NULL);
 }
 
 FloatBufPtr VorbisManager::CreateBufferInstance(int twopow) {
+  if (audiofile_ != NULL) {
+    stb_vorbis_info info = stb_vorbis_get_info(audiofile_);
+    sample_rate_ = info.sample_rate;
+    channel_count_ = info.channels;
+
+    info_.SetSampleRate(info.sample_rate);
+  }
+
+  critical_buffer_ = new FloatBuf(twopow);
+
+  // initialize the channel buffer, expecting to store max number of channels
+  channel_buffers_ = new float[channel_count_ * static_cast<int>(pow(2, twopow))];
   if (static_cast<int>(pow(2, twopow)) <= critical_buffer_capacity_) {
     // desired buffer is smaller than critical minimum
     return nullptr;
