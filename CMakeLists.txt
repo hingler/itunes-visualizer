@@ -65,6 +65,7 @@ FILE(GLOB TESTFILES ${test_dir}/*.cpp)
 set(timingtest_deps timing)
 set(DFTtest_deps DFT)
 set(SPSCtest_deps )
+set(SPSCPerChanneltest_deps )
 
 foreach(TESTFILE ${TESTFILES})
   get_filename_component(TESTNAME ${TESTFILE} NAME_WE)

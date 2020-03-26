@@ -74,7 +74,8 @@ class AudioBufferSPSC {
     reader_thread_(pc_marker()),
     writer_thread_(pc_marker()),
     read_marker_(0),
-    readzone_(new BUFFER_UNIT[buffer_capacity_])
+    readzone_(new BUFFER_UNIT[buffer_capacity_]),
+    channelzone_(new BUFFER_UNIT*[channel_count])
     {
       writer_thread_.safesize = buffer_capacity_;
     }
@@ -163,7 +164,7 @@ class AudioBufferSPSC {
         if (masked_read >= buffer_capacity_) {
           masked_read -= buffer_capacity_;
         }
-        channelzone_[j][i] = buffer_[masked_read];
+        channelzone_[j][i] = buffer_[masked_read++];
       }
     }
 
@@ -250,7 +251,7 @@ class AudioBufferSPSC {
         if (masked_read >= buffer_capacity_) {
           masked_read -= buffer_capacity_;
         }
-        channelzone_[j][i] = buffer_[masked_read];
+        channelzone_[j][i] = buffer_[masked_read++];
       }
     }
 
@@ -388,6 +389,7 @@ class AudioBufferSPSC {
   ~AudioBufferSPSC() {
     delete[] buffer_;
     delete[] readzone_;
+    delete[] channelzone_;
   }
 
   // implement an assign op which populates the local buffer
