@@ -16,8 +16,7 @@ typedef std::function<void(FloatBuf*)> BufferCallback;
 // TODO: Initialize/Terminate PA, etc etc
 
 VorbisManager::VorbisManager(int twopow) : critical_buffer_capacity_(pow(2, twopow)),
-                                           run_thread_(false),
-                                           time_info() {
+                                           run_thread_(false) {
   // set to null initially
   // this is nonideal but its fine
   // plus its more consistent
@@ -101,6 +100,7 @@ bool VorbisManager::StartWriteThread() {
   // populate everything
   PopulateBuffers(critical_buffer_capacity_);
   // start up write thread, passing the containing class as arg
+  run_thread_.store(true, std::memory_order_release);
   write_thread_ = std::thread(&VorbisManager::WriteThreadFn, this);
   return true;
 }
@@ -112,10 +112,6 @@ bool VorbisManager::StopWriteThread() {
   }
 
   run_thread_.store(std::memory_order_release);
-}
-
-const TimeInfo* VorbisManager::GetTimeInfo() {
-  return const_cast<const TimeInfo*>(&time_info);
 }
 
 bool VorbisManager::PopulateBuffers(uint32_t write_size) {
@@ -231,5 +227,5 @@ VorbisManager::~VorbisManager() {
   delete critical_buffer_;
 }
 
-// TimeInfo
+typedef std::chrono::high_resolution_clock hrc;
 

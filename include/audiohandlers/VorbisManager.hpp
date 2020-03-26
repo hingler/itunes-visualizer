@@ -18,51 +18,15 @@
 // a lot of this stuff is provided by the lib already
 // but the aim is to just make some c calls into cpp calls
 
+// TODO: Write a `TimeInfo` struct used to provide sample info to threads.
+// Created when we start a thread and destroyed when the thread closes.
+
 /**
  *  A TimeInfo provides some stats on the currently-running thread.
  *  The idea is that this should allow a client to synchronize themselves
  *  with the thread currently being read.
  */ 
-struct TimeInfo {
- public:
-  /**
-   * Construct a TimeInfo
-   * 
-   * Default: Sample rate of 0, epoch is the unix epoch.
-   * Const: Sample rate and epoch are set based on currently running file.
-   */ 
-  TimeInfo() : sample_rate_(0), playback_epoch_() { }
-  TimeInfo(std::chrono::time_point<std::chrono::high_resolution_clock> epoch, 
-           int sample_rate) : sample_rate_(sample_rate), playback_epoch_(epoch) { }
 
-  void operator=(const TimeInfo& info) {
-    sample_offset_.store(info.sample_offset_, std::memory_order_release);
-    sample_rate_ = info.sample_rate_;
-    playback_epoch_ = info.playback_epoch_;
-  };
-
-  /**
-   * Estimates which sample we should be reading from
-   */ 
-  int GetCurrentSample() const;
-
-  void Reset() {
-    sample_offset_ = GetCurrentSample();
-  }
-
-  /**
-   * Determine whether the TimeInfo is currently valid
-   */ 
-  bool IsValid() const { return (sample_rate_); }
- private:
-  std::chrono::time_point<std::chrono::high_resolution_clock> playback_epoch_;
-  // playback start point
-  // not sure what this does yet! but im sure it will be cool :)
-
-  // what if the epoch remains constant, and we just modify the offset on a reset call?
-  std::atomic<int> sample_offset_;
-  int sample_rate_;
-};
 
 class VorbisManager {
   // floats only!
@@ -109,10 +73,6 @@ class VorbisManager {
    */ 
   bool StopWriteThread();
 
-  /**
-   *  If a thread is running, returns a copy of the TimeInfo associated with the current file.
-   */ 
-  const TimeInfo* GetTimeInfo();
 
   VorbisManager(VorbisManager&) = delete;
   void operator=(const VorbisManager& m) = delete;
@@ -123,8 +83,6 @@ class VorbisManager {
   AudioBufferSPSC<float>* critical_buffer_;
   uint32_t critical_buffer_capacity_;
   stb_vorbis* audiofile_;
-
-  TimeInfo time_info;
 
   // some const fields
   unsigned int sample_rate_;
