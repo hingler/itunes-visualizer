@@ -46,6 +46,8 @@ bool VorbisManager::SetFilename(char* filename) {
   sample_rate_ = info.sample_rate;
   channel_count_ = info.channels;
 
+  info_.SetSampleRate(info.sample_rate);
+
   return true;
 }
 
@@ -220,9 +222,16 @@ void VorbisManager::EraseOrCallback(BufferCallback) {
 
 VorbisManager::~VorbisManager() {
   StopWriteThread();    // ensure the write thread doesn't continue on without us
+  while (true);         // wait for the run_thread_ sign to flip
   if (audiofile_ != NULL) {
     stb_vorbis_close(audiofile_);
   }
+
+  // channel_buffers_ and critical_buffer_ are used by the write thread
+  // we cannot use join in most cases, so we are reliant on detach to work correctly
+  // note that the write thread will invalidate the timeinfo
+
+  // thus, we can wait for our writethread to complete by looping on IsValid.
   delete channel_buffers_;
   delete critical_buffer_;
 }

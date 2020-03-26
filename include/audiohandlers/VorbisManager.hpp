@@ -18,14 +18,64 @@
 // a lot of this stuff is provided by the lib already
 // but the aim is to just make some c calls into cpp calls
 
-// TODO: Write a `TimeInfo` struct used to provide sample info to threads.
-// Created when we start a thread and destroyed when the thread closes.
+// TODO: Figure out the best way to handle multiple channels
+// The audio buffer is a bit "dumb" but it should be able to be synchronized
 
 /**
  *  A TimeInfo provides some stats on the currently-running thread.
  *  The idea is that this should allow a client to synchronize themselves
  *  with the thread currently being read.
- */ 
+ */
+
+struct TimeInfo {
+ public:
+
+  TimeInfo() : sample_rate_(0),
+               playback_start_(std::chrono::high_resolution_clock::now()) { }
+
+  /**
+   * Validate the current struct. Represents that this struct should be read
+   * by users.
+   */ 
+  void MakeValid() {
+    active.store(true, std::memory_order_release);
+  }
+
+  /**
+   * Invalidate the current struct. Represents that the state of the struct
+   * is such that it cannot be returned.
+   */ 
+  void MakeInvalid() {
+    active.store(false, std::memory_order_release);
+  }
+
+  /**
+   *  
+   */ 
+  int GetCurrentSample() const {
+    if (!active.load(std::memory_order_acquire)) {
+      return -1;
+    }
+
+    std::chrono::duration<double, std::milli> dur = (std::chrono::high_resolution_clock::now() - playback_start_);
+    return ((sample_rate_) * (dur.count() / 1000));
+  }
+
+  void SetSampleRate(int new_sample) {
+    sample_rate_ = new_sample;
+  }
+
+  bool IsValid() {
+    return active.load(std::memory_order_acquire);
+  }
+
+  
+
+ private:
+  std::atomic<bool> active;
+  int sample_rate_;
+  std::chrono::time_point<std::chrono::high_resolution_clock> playback_start_;
+};
 
 
 class VorbisManager {
@@ -92,6 +142,8 @@ class VorbisManager {
   std::thread write_thread_;  // thread itself
   std::atomic<bool> run_thread_;  // used to communicate whether the thread should continue running
 
+  TimeInfo info_;
+  // fluid buffer for storing/retreiving channel data
   float* channel_buffers_;
 
   // lock for buffer list

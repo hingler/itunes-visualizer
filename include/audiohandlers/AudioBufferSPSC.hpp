@@ -4,7 +4,8 @@
 
 // use two structs to keep track of a "minimum guaranteed" access size
 
-// reference: http://daugaard.org/blog/writing-a-fast-and-versatile-spsc-ring-buffer/
+// thank you to http://daugaard.org/blog/writing-a-fast-and-versatile-spsc-ring-buffer/
+// for being a guiding light in how to write this shit up
 
 // spsc:
 //  - on their own, the producer and consumer should have the resources necessary
@@ -28,6 +29,25 @@
 
 #include <iostream>
 
+// TODO: Rework all functions to take channel count into account
+//       For the most part we'll copy the inline scheme from stb_vorbis
+//       And send back info in that same interleaved format
+//       The client is responsible for sorting that info out
+
+// Two options:
+//    - array of unit arrays
+//    - singular interleaved array
+// My concern is that the latter is going to be much easier to write
+// And doesn't require massive reworking of existing code
+// However the former will be better for like memory shit
+// For instance if we have to pass that info to DFT anyway
+// it makes no sense to interleave it if we need to allocate more space
+// to separate it
+
+// I'll go with the "unit array" solution
+// And rewrite the whole thing
+// Call it "SPSCMultiChannelAudioBuffer"
+
 struct pc_marker {
   pc_marker() : position(0), safesize(0) { }
   uint32_t position; // the index which the marker points to (masked 2x)
@@ -37,15 +57,16 @@ struct pc_marker {
 template <typename BUFFER_UNIT>
 class AudioBufferSPSC {
  public:
-  AudioBufferSPSC(int twopow) :
+  AudioBufferSPSC(int twopow, int channel_count = 1) :
+    channel_count_(channel_count),
     buffer_capacity_(pow(2, twopow)),
-    buffer_(new BUFFER_UNIT[buffer_capacity_]),
+    buffer_(new BUFFER_UNIT[buffer_capacity_ * channel_count_]),
     shared_read_(0),
     shared_write_(0),
     reader_thread_(pc_marker()),
     writer_thread_(pc_marker()),
     read_marker_(0),
-    readzone_(new BUFFER_UNIT[buffer_capacity_])
+    readzone_(new BUFFER_UNIT[buffer_capacity_ * channel_count_])
     {
       writer_thread_.safesize = buffer_capacity_;
     }
@@ -284,6 +305,8 @@ class AudioBufferSPSC {
   AudioBufferSPSC(const AudioBufferSPSC &) = delete;
 
  private:
+  const int channel_count_; // number of channels -- used for synchronization of r/w ops
+  
   const uint32_t buffer_capacity_;  // max capacity of the buffer
   BUFFER_UNIT* buffer_;   // pointer to internal buffer
 
@@ -295,6 +318,7 @@ class AudioBufferSPSC {
 
   pc_marker writer_thread_;
   std::atomic_uint32_t shared_write_;   // shared ptr for syncing write val
+
 
   // todo: resolve issue of reading data while it may be written at the same time
   // in the read thread: read to a second ring buffer which can be shared with a render thread.
