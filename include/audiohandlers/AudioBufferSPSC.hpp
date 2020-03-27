@@ -174,6 +174,9 @@ class AudioBufferSPSC {
     return len;
   }
 
+  /**
+   *  Skip reading some number of terms.
+   */ 
   bool Skip(uint32_t count) {
     std::lock_guard<std::mutex> lock(read_lock_);
     if (reader_thread_.safesize < count) {
@@ -332,7 +335,7 @@ class AudioBufferSPSC {
    *  Wipes the contents of the queue. Not thread safe.
    */ 
   void Clear() {
-    std::scoped_lock<std::mutex>(read_lock_, write_lock_);
+    std::scoped_lock (read_lock_, write_lock_);
     writer_thread_.position = 0;
     reader_thread_.position = 0;
     writer_thread_.safesize = buffer_capacity_;

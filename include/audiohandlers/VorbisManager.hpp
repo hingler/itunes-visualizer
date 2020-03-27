@@ -4,9 +4,13 @@
 #include "vorbis/stb_vorbis.h"
 #include "audiohandlers/AudioBufferSPSC.hpp"
 
+#include <chrono>
+#include <functional>
+#include <list>
 #include <memory>
 #include <mutex>
-
+#include <shared_mutex>
+#include <thread>
 
 /**
  *  A read-only wrapper for our AudioBufferSPSC which gives the user single-thread access
@@ -18,7 +22,7 @@ class ReadOnlyBuffer {
    *  All of the following functions wrap the existing functionality for the AudioBufferSPSC class,
    *  with BUFFER_UNIT = float. Please refer to that class for documentation.
    */
-  ReadOnlyBuffer(AudioBufferSPSC<float>* buffer) : buffer_(buffer) {}
+  ReadOnlyBuffer(std::shared_ptr<AudioBufferSPSC<float>> buffer) : buffer_(buffer) {}
 
   size_t Peek(uint32_t count, float** output) {
     return buffer_->Peek(count, output);
@@ -51,6 +55,68 @@ class ReadOnlyBuffer {
 };
 
 /**
+ *  A pair of atomic flags used to facilitate communication between our thread and our vorbis manager. 
+ */ 
+struct ThreadPacket {
+  std::atomic_flag thread_signal;     // flag raised by the thread to communicate to the manager.
+  std::atomic_flag vm_signal;         // flag raised by the manager to communicate to the thread.
+};
+
+struct TimeInfo {
+  TimeInfo() : sample_rate_(0), 
+               playback_epoch_(std::chrono::high_resolution_clock::now()) {}
+  TimeInfo(int sample_rate) : sample_rate_(sample_rate),
+                              playback_epoch_(std::chrono::high_resolution_clock::now()) {}
+
+  /**
+   *  Returns the current sample, or -1 if nothing is currently playing.
+   */ 
+  int GetCurrentSample() const {
+    std::shared_lock<std::shared_mutex> lock(info_lock_);
+    if (sample_rate_ == 0) {
+      return -1;
+    }
+
+    std::chrono::duration<double, std::milli> offset =
+      std::chrono::high_resolution_clock::now() - playback_epoch_;
+    return (sample_rate_ * offset.count()) / 1000;
+  }
+
+  /**
+   *  Returns true if our PA callback thread is running, false otherwise.
+   */ 
+  bool IsThreadRunning() const {
+    std::shared_lock lock(info_lock_);
+    return (sample_rate_ <= 0);
+  }
+
+  /**
+   *  Modifies the current sample rate.
+   */ 
+  void SetSampleRate(int sample_rate) {
+    std::lock_guard<std::shared_mutex> lock(info_lock_);
+    sample_rate_ = sample_rate;
+  }
+
+  /**
+   *  Resets the playback epoch to now.
+   */ 
+  void ResetEpoch() {
+    std::lock_guard<std::shared_mutex> lock(info_lock_);
+    playback_epoch_ = std::chrono::high_resolution_clock::now();
+  }                   
+
+  int sample_rate_;
+  std::chrono::time_point<std::chrono::high_resolution_clock> playback_epoch_;
+ private:
+  // mutable keyword: allows for modification within a const function
+  // DO NOT OVERUSE!!!
+  // it is useful in this case because we need R/W lock access (and only lock access)
+  // within const function calls.
+  mutable std::shared_mutex info_lock_;
+};
+
+/**
  *  This class encompasses the file I/O associated with playing an audio file via PortAudio.
  */ 
 class VorbisManager {
@@ -71,17 +137,114 @@ class VorbisManager {
   static VorbisManager* GetVorbisManager(int twopow, char* filename);
 
   /**
-   *  Creates a new audio buffer which will be populated by the thread function.
-   *  Returns a shared pointer to the buffer.
+   *  Creates a heap-allocated read-only buffer instance which can be used to get info
+   *  from the thread.
    * 
    *  Returns:
-   *    A shared pointer which references the buffer.
+   *    A shared pointer which references the newly created buffer.
+   *    If the inputted size is less than the size of our input buffer, returns null.
    */ 
-  std::shared_ptr<AudioBufferSPSC<float>> CreateBufferInstance();
+  ReadOnlyBuffer* CreateBufferInstance(int twopow);
 
+  /**
+   *  Starts up the write thread as well as the PortAudio callback, if they are not already running.
+   *  
+   */ 
+  void StartWriteThread();
+
+  /**
+   *  Stops the write thread and PortAudio callback if they are already running.
+   */ 
+  void StopWriteThread();
+
+  /**
+   *  Returns whether or not the write thread is running currently.
+   */ 
+  bool IsThreadRunning();
+
+  /**
+   *  Return the TimeInfo object associated with this manager.
+   */ 
+  const TimeInfo* GetTimeInfo();
+
+  /**
+   *  Destructor for the VorbisManager.
+   */ 
+  ~VorbisManager();
 
  private:
+ /**
+  *   Private constructor called by GetVorbisManager.
+  */ 
   VorbisManager(int twopow, stb_vorbis* file);
+
+  /**
+   *  Function which actually does the reading/writing
+   */ 
+  void WriteThreadFn();
+
+  /**
+   *  Prunes expired buffers and performs the call back function on all remaining ones.
+   */ 
+  void EraseOrCallback(const std::function<void(std::shared_ptr<AudioBufferSPSC<float>>)>&);
+
+  // PRIVATE FIELDS
+
+  /**
+   *  A list of weak pointers to our buffers. If a user is done with their buffer this
+   *  ensures that everything is cleared correctly while still allowing write access.
+   */ 
+  std::list<std::weak_ptr<AudioBufferSPSC<float>>> buffer_list_;
+
+  /**
+   *  The lock associated with all accesses to the buffer list.
+   */ 
+  std::mutex buffer_list_lock_;
+
+  /**
+   *  The "critical" buffer which is used by our PortAudio callback function.
+   */ 
+  AudioBufferSPSC<float>* critical_buffer_;
+
+  /**
+   *  The audiofile which is being managed.
+   */ 
+  stb_vorbis* audiofile_;
+
+  /**
+   *  The sample rate of our vorbis file.
+   */ 
+  unsigned int sample_rate_;
+
+  /**
+   *  The number of channels contained in our vorbis file.
+   */ 
+  int channel_count_;
+
+  /**
+   *  Used by the write thread as free space when reading via vorbis.
+   */ 
+  float* read_buffer_;
+
+  /**
+   *  Thread object representing our write thread.
+   */ 
+  std::thread write_thread_;
+
+  /**
+   *  Determines whether a given thread is running.
+   */ 
+  std::atomic<bool> run_thread_;
+
+  /**
+   *  pair of atomic flags used to facilitate communication btwn thread and parent.
+   */ 
+  ThreadPacket packet;
+
+  /**
+   *  TimeInfo object associated with manager.
+   */ 
+  TimeInfo info;
 };
 
 #endif  // VORBIS_MANAGER_H_
