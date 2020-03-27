@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.0.0)
 project(itunes-visualizer VERSION 0.1.0)
 
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
 include(CTest)
 include(ExternalProject)
 
@@ -11,7 +14,8 @@ enable_testing()
 
 add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
-add_library(vorbis src/audiohandlers/stb_vorbis.c)
+add_library(vorbis src/audiohandlers/stb_vorbis.c
+                   src/audiohandlers/VorbisManager.cpp)
 
 
 target_include_directories(timing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)

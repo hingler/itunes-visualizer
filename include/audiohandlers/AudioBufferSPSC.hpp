@@ -26,6 +26,7 @@
 #include <atomic>
 #include <cstdint>
 #include <cmath>
+#include <mutex>
 
 #include <iostream>
 
@@ -95,6 +96,8 @@ class AudioBufferSPSC {
     // TODO: output param is inconsistent
     //       might be ideal? depending on use cases but ich dont think so
     uint32_t len;
+    // must ensure that read head stays in place for duration of operation
+    std::lock_guard<std::mutex> lock(read_lock_);
     if (reader_thread_.safesize < count) {
       // no guarantee that we have enough room to read -- check the atomic
       UpdateReaderThread();
@@ -141,6 +144,10 @@ class AudioBufferSPSC {
     // assume that we are on a channel boundary
     uint32_t len;
     uint32_t count = framecount * channel_count_;
+
+    RefreshChannelZone();
+
+    std::lock_guard<std::mutex> lock(read_lock_);
     if (reader_thread_.safesize < count) {
       UpdateReaderThread();
     }
@@ -150,12 +157,6 @@ class AudioBufferSPSC {
     } else {
       len = framecount;
     }
-    // general:
-      // use our buffer, on particular intervals which will be consistent
-      // we cannot change the channel count as it is tied to our buffer size
-      // read into offset positions
-      // return pointers to those offset positions
-    RefreshChannelZone();
 
     uint32_t masked_read = Mask(reader_thread_.position);
 
@@ -174,6 +175,7 @@ class AudioBufferSPSC {
   }
 
   bool Skip(uint32_t count) {
+    std::lock_guard<std::mutex> lock(read_lock_);
     if (reader_thread_.safesize < count) {
       UpdateReaderThread();
     }
@@ -206,6 +208,7 @@ class AudioBufferSPSC {
    */
   BUFFER_UNIT* Read(uint32_t count) {
     // check safesize
+    std::lock_guard<std::mutex> lock(read_lock_);
     if (reader_thread_.safesize < count) {
       UpdateReaderThread();
 
@@ -235,6 +238,7 @@ class AudioBufferSPSC {
 
   BUFFER_UNIT** Read_Chunked(uint32_t framecount) {
     int count = framecount * channel_count_;
+    std::lock_guard<std::mutex> lock(read_lock_);
     if (reader_thread_.safesize < count) {
       UpdateReaderThread();
     }
@@ -265,33 +269,11 @@ class AudioBufferSPSC {
   }
 
   /**
-   * A more flexible version of the read call which reads at most the number of items specified
-   * and passes through the queue accordingly.
-   * 
-   * Arguments:
-   *  - count, the maximum number of elements we want to read.
-   *  - items_read, an output parameter which will contain the number of items read.
-   * 
-   * Returns:
-   *  - A pointer to an array of queue entries containing the number of items specified
-   *    by items_read.
-   */ 
-  BUFFER_UNIT* ReadMaximum(uint32_t count, int* items_read) {
-    if (reader_thread_.safesize < count) {
-      UpdateReaderThread();
-    }
-    
-    BUFFER_UNIT* retval = Read(Min(count, reader_thread_.safesize));
-    *items_read = count;
-
-    return retval;
-  }
-
-  /**
    *  Synchronizes the audio buffer to a given sample number.
    *  Note: buffer is emptied if sample_num is larget than the number of entries currently contained
    */ 
   void Synchronize(uint32_t sample_num) {
+    std::lock_guard<std::mutex> lock(read_lock_);
     int count = sample_num - read_marker_.load(std::memory_order_acquire);
     // ensure that we have enough space to leap
     if (count > 0) {
@@ -321,6 +303,7 @@ class AudioBufferSPSC {
    * false if not enough room, true otherwise.
    */ 
   bool Write(const BUFFER_UNIT* data, uint32_t count) {
+    std::lock_guard<std::mutex> lock(write_lock_);
     if (writer_thread_.safesize < count) {
       UpdateWriterThread();
     }
@@ -349,6 +332,7 @@ class AudioBufferSPSC {
    *  Wipes the contents of the queue. Not thread safe.
    */ 
   void Clear() {
+    std::scoped_lock<std::mutex>(read_lock_, write_lock_);
     writer_thread_.position = 0;
     reader_thread_.position = 0;
     writer_thread_.safesize = buffer_capacity_;
@@ -362,6 +346,7 @@ class AudioBufferSPSC {
     // ForceWrite, which will guarantee that data is written again
 
   uint32_t GetMaximumWriteSize() {
+    std::lock_guard<std::mutex> lock(write_lock_);
     UpdateWriterThread();
     return writer_thread_.safesize;
   }
@@ -414,11 +399,13 @@ class AudioBufferSPSC {
   pc_marker reader_thread_;
   std::atomic_uint32_t shared_read_;  // shared ptr for syncing read val
   std::atomic_uint64_t read_marker_;  // tracks number of samples read thus far
+  std::mutex read_lock_;
   
   char CACHE_BUSTER[64];  // yall is playn -_-
 
   pc_marker writer_thread_;
   std::atomic_uint32_t shared_write_;   // shared ptr for syncing write val
+  std::mutex write_lock_;
 
 
   // todo: resolve issue of reading data while it may be written at the same time

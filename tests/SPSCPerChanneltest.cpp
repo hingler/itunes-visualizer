@@ -31,7 +31,7 @@ TEST(ChannelBufferTests, SimpleReadWriteTest) {
 }
 
 const static int contents_length = 705600;
-const static int sample_rate = 576000 * 2;
+const static int sample_rate = 576000 * 4;
 
 typedef std::chrono::time_point<std::chrono::high_resolution_clock> hrctp;
 typedef std::chrono::duration<double, std::ratio<1L, 1L>> SecDur;
