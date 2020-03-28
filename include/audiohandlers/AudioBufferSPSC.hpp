@@ -362,14 +362,14 @@ class AudioBufferSPSC {
     shared_write_.store(writer_thread_.position, std::memory_order_release);
   }
 
-  bool Force_Write(const BUFFER_UNIT* data, uint32_t count) {
+  void Force_Write(const BUFFER_UNIT* data, uint32_t count) {
     std::scoped_lock(read_lock_, write_lock_);
     // lock and update writer thread
     UpdateWriterThread();
 
     if (writer_thread_.safesize < count) {
       // still not enough space
-      int to_skip = count - writer_thread_.safesize 
+      int to_skip = count - writer_thread_.safesize;
       // jump ahead a few
       reader_thread_.position = MaskTwo(reader_thread_.position + to_skip);
     }
@@ -379,7 +379,7 @@ class AudioBufferSPSC {
       if (masked_write >= buffer_capacity_) {
         masked_write -= buffer_capacity_;
       }
-      buffer_[masked_write++] = data[j][i];
+      buffer_[masked_write++] = data[i];
     }
 
     writer_thread_.position = MaskTwo(writer_thread_.position + count);

@@ -3,6 +3,7 @@
 
 #include "vorbis/stb_vorbis.h"
 #include "audiohandlers/AudioBufferSPSC.hpp"
+#include "portaudio.h"
 
 #include <chrono>
 #include <functional>
