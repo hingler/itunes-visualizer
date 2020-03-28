@@ -1,4 +1,5 @@
 #include "audiohandlers/VorbisManager.hpp"
+#include "portaudio.h"
 
 typedef AudioBufferSPSC<float> FloatBuf;
 VorbisManager* VorbisManager::GetVorbisManager(int twopow, char* filename) {
@@ -22,13 +23,11 @@ VorbisManager* VorbisManager::GetVorbisManager(int twopow, char* filename) {
   return new VorbisManager(twopow, file);
 }
 
-ReadOnlyBuffer* VorbisManager::CreateBufferInstance(int twopow) {
-  if (pow(2, twopow) <= critical_buffer_->Capacity()) {
-    return nullptr;
-  }
-
-  std::shared_ptr<FloatBuf> result(new FloatBuf(twopow, channel_count_));
-  std::lock_guard<std::mutex> lock(buffer_list_lock_);
+ReadOnlyBuffer* VorbisManager::CreateBufferInstance() {
+  // realization: why would we ever want a larger buffer
+  // the size of the critical buffer affects the number of terms in all others
+  std::shared_ptr<FloatBuf> result(new FloatBuf(buffer_power_, channel_count_));
+  std::lock_guard lock(buffer_list_lock_);
   buffer_list_.push_front(result);
   return new ReadOnlyBuffer(result);
 }
@@ -56,7 +55,7 @@ void VorbisManager::StartWriteThread() {
     write_thread_ = std::thread(&VorbisManager::WriteThreadFn, this);
     // we have our ThreadPacket for keeping watch (which it will have access to via `this`)
     write_thread_.detach();
-    // wait for the write thread to finish
+    // wait for the write thread to finish setting up
     while (packet.thread_signal.test_and_set());
     // TimeInfo is now valid -- threads can read
     info.SetSampleRate(sample_rate_);
@@ -107,7 +106,50 @@ VorbisManager::~VorbisManager() {
 }
 
 // PRIVATE FUNCTIONS
-// TODO: Write the private functions (constructor, thread func)
+// TODO: Write the private functions (thread func)
+
+VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : info(), buffer_power_(twopow + 1) {
+  stb_vorbis_info info = stb_vorbis_get_info(file);
+  channel_count_ = info.channels;
+  sample_rate_ = info.sample_rate;
+  audiofile_ = file;
+  critical_buffer_ = new FloatBuf(twopow, channel_count_);
+  read_buffer_ = new float[critical_buffer_->Capacity()];
+}
+
+void VorbisManager::WriteThreadFn() {
+  // write this
+  uint32_t write_threshold = critical_buffer_->Capacity() / 2;
+  int samples_read;
+
+  PaError err;
+
+  err = Pa_Initialize();
+
+  if (err != paNoError) {
+    // cleanup
+  }
+
+  PaStream* stream;
+  const int devnum = 6;   // again i think
+  const PaDeviceInfo* info = Pa_GetDeviceInfo(devnum);
+  PaStreamParameters outParam;
+
+  outParam.channelCount = info->maxOutputChannels;
+  outParam.device = 6;
+  outParam.hostApiSpecificStreamInfo = NULL;
+  outParam.sampleFormat = paFloat32;
+  outParam.suggestedLatency = info->defaultLowOutputLatency;
+
+  err = Pa_OpenStream(&stream,
+                      NULL,
+                      &outParam,
+                      sample_rate_,
+                      paFramesPerBufferUnspecified,
+                      paNoFlag,
+                      VorbisManager::PaCallback,
+                      NULL);
+}
 
 void VorbisManager::EraseOrCallback(const std::function<void(std::shared_ptr<FloatBuf>)>& func) {
   std::shared_ptr<AudioBufferSPSC<float>> ptr;
@@ -122,3 +164,23 @@ void VorbisManager::EraseOrCallback(const std::function<void(std::shared_ptr<Flo
     }
   }
 }
+
+// todo: multithread erase-or-callback
+// create a thread+queue struct which accepts lambdas and runs them to completion
+// send the request to all threads which are not replaced, one by one
+// waiting for their completion is a bit finicky
+// not right now though
+void VorbisManager::PopulateBuffers(int write_size) {
+  if (write_size > critical_buffer_->Capacity()) {
+    // something is wrong!
+  }
+  
+  // read from vorbis
+  stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, read_buffer_, write_size);
+  // wait until we can populate
+  while (critical_buffer_->GetMaximumWriteSize() < write_size);
+  critical_buffer_->Write(read_buffer_, write_size);
+  
+  
+}
+

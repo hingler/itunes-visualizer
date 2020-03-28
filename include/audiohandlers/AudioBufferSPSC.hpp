@@ -175,7 +175,8 @@ class AudioBufferSPSC {
   }
 
   /**
-   *  Skip reading some number of terms.
+   *  Skips some number of terms which are being read. Does not increment
+   *  number of samples read.
    */ 
   bool Skip(uint32_t count) {
     std::lock_guard<std::mutex> lock(read_lock_);
@@ -191,7 +192,6 @@ class AudioBufferSPSC {
     reader_thread_.safesize -= count;
 
     shared_read_.store(reader_thread_.position, std::memory_order_release);
-    read_marker_.fetch_add(count, std::memory_order_acq_rel);
   }
 
   bool Skip_Chunked(uint32_t framecount) {
@@ -274,6 +274,7 @@ class AudioBufferSPSC {
   /**
    *  Synchronizes the audio buffer to a given sample number.
    *  Note: buffer is emptied if sample_num is larget than the number of entries currently contained
+   *  Adjusts the internal sample counter to the provided value.
    */ 
   void Synchronize(uint32_t sample_num) {
     std::lock_guard<std::mutex> lock(read_lock_);
@@ -292,7 +293,7 @@ class AudioBufferSPSC {
       reader_thread_.safesize -= offset;
       reader_thread_.position = MaskTwo(reader_thread_.position + offset);
       shared_read_.store(reader_thread_.position, std::memory_order_release);
-      read_marker_.fetch_add(count, std::memory_order_release);
+      read_marker_.store(sample_num, std::memory_order_release);
     }
   }
 
@@ -329,6 +330,62 @@ class AudioBufferSPSC {
     shared_write_.store(writer_thread_.position, std::memory_order_release);
 
     return true;
+  }
+
+  /**
+   *  Ensures that we write on frame boundaries
+   */ 
+  bool Write_Synchronized(const BUFFER_UNIT** data, uint32_t framecount) {
+    int count = framecount * channel_count_;
+    std::lock_guard<std::mutex> lock(write_lock_);
+    if (writer_thread_.safesize < count) {
+      UpdateWriterThread();
+    }
+
+    if (writer_thread_.safesize < count) {
+      return false;
+    }
+
+    uint32_t masked_write = Mask(writer_thread_.position);
+    for (int i = 0; i < framecount; i++) {
+      for (int j = 0; j < channel_count_; j++) {
+        if (masked_write >= buffer_capacity_) {
+          masked_write -= buffer_capacity_;
+        }
+        buffer_[masked_write++] = data[j][i];
+      }
+    }
+
+    writer_thread_.position = MaskTwo(writer_thread_.position + count);
+    writer_thread_.safesize -= count;
+
+    shared_write_.store(writer_thread_.position, std::memory_order_release);
+  }
+
+  bool Force_Write(const BUFFER_UNIT* data, uint32_t count) {
+    std::scoped_lock(read_lock_, write_lock_);
+    // lock and update writer thread
+    UpdateWriterThread();
+
+    if (writer_thread_.safesize < count) {
+      // still not enough space
+      int to_skip = count - writer_thread_.safesize 
+      // jump ahead a few
+      reader_thread_.position = MaskTwo(reader_thread_.position + to_skip);
+    }
+
+    uint32_t masked_write = Mask(writer_thread_.position);
+    for (int i = 0; i < count; i++) {
+      if (masked_write >= buffer_capacity_) {
+        masked_write -= buffer_capacity_;
+      }
+      buffer_[masked_write++] = data[j][i];
+    }
+
+    writer_thread_.position = MaskTwo(writer_thread_.position + count);
+    writer_thread_.safesize -= count;
+
+    shared_write_.store(writer_thread_.position, std::memory_order_release);
   }
 
   /**

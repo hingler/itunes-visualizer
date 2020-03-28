@@ -14,7 +14,8 @@
 
 /**
  *  A read-only wrapper for our AudioBufferSPSC which gives the user single-thread access
- *  to the audio buffer's contents.
+ *  to the audio buffer's contents. Only exposes chunked functions, to ensure that the read
+ *  thread does not desynchronize. We don't really care what the write thread does.
  */ 
 class ReadOnlyBuffer {
  public:
@@ -24,24 +25,12 @@ class ReadOnlyBuffer {
    */
   ReadOnlyBuffer(std::shared_ptr<AudioBufferSPSC<float>> buffer) : buffer_(buffer) {}
 
-  size_t Peek(uint32_t count, float** output) {
-    return buffer_->Peek(count, output);
-  }
-
   size_t Peek_Chunked(uint32_t framecount, float*** output) {
     return buffer_->Peek_Chunked(framecount, output);
   }
 
-  float* Read(uint32_t count) {
-    return buffer_->Read(count);
-  }
-
   float** Read_Chunked(uint32_t framecount) {
     return buffer_->Read_Chunked(framecount);
-  }
-
-  void Synchronize(uint32_t sample_num) {
-    buffer_->Synchronize(sample_num);
   }
 
   void Synchronize_Chunked(uint32_t frame_num) {
@@ -144,7 +133,7 @@ class VorbisManager {
    *    A shared pointer which references the newly created buffer.
    *    If the inputted size is less than the size of our input buffer, returns null.
    */ 
-  ReadOnlyBuffer* CreateBufferInstance(int twopow);
+  ReadOnlyBuffer* CreateBufferInstance();
 
   /**
    *  Starts up the write thread as well as the PortAudio callback, if they are not already running.
@@ -187,6 +176,24 @@ class VorbisManager {
    *  Prunes expired buffers and performs the call back function on all remaining ones.
    */ 
   void EraseOrCallback(const std::function<void(std::shared_ptr<AudioBufferSPSC<float>>)>&);
+
+  /**
+   *  Fills all buffers based on the write capacity of the critical buffer.
+   */ 
+  void PopulateBuffers(int write_size);
+
+  // handles cases where the buffer is full when we try to write more shit
+  static void FillBufferListCallback(std::shared_ptr<AudioBufferSPSC<float>> buf, int write_size);
+
+  /**
+   *  Callback passed to PortAudio
+   */ 
+  static int PaCallback(  const void* inputBuffer,
+                          void* outputBuffer,
+                          unsigned long frameCount,
+                          const PaStreamCallbackTimeInfo* timeInfo,
+                          PaStreamCallbackFlags statusFlags,
+                          void* userData  );
 
   // PRIVATE FIELDS
 
@@ -235,6 +242,11 @@ class VorbisManager {
    *  Determines whether a given thread is running.
    */ 
   std::atomic<bool> run_thread_;
+
+  /**
+   *  Two-power used to initialize additional buffers.
+   */ 
+  int buffer_power_;
 
   /**
    *  pair of atomic flags used to facilitate communication btwn thread and parent.
