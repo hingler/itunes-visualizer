@@ -34,6 +34,7 @@ class ReadOnlyBuffer {
     return buffer_->Read_Chunked(framecount);
   }
 
+  // use the timeinfo here
   void Synchronize_Chunked(uint32_t frame_num) {
     buffer_->Synchronize_Chunked(frame_num);
   }
@@ -104,6 +105,14 @@ struct TimeInfo {
   // it is useful in this case because we need R/W lock access (and only lock access)
   // within const function calls.
   mutable std::shared_mutex info_lock_;
+};
+
+/**
+ *  A packet of data sent to our PaCallback.
+ */ 
+struct CallbackPacket {
+  AudioBufferSPSC<float>* buf;      // the buffer which we are reading from (almost certainly the crit buffer)
+  std::atomic_flag callback_signal; // the signal used to communicate with the write thread
 };
 
 /**
@@ -180,11 +189,13 @@ class VorbisManager {
 
   /**
    *  Fills all buffers based on the write capacity of the critical buffer.
+   *  Returns whether or not there is more content in the vorbis stream to read.
+   *  
    */ 
-  void PopulateBuffers(int write_size);
+  bool PopulateBuffers(int write_size);
 
   // handles cases where the buffer is full when we try to write more shit
-  static void FillBufferListCallback(std::shared_ptr<AudioBufferSPSC<float>> buf, int write_size);
+  static void FillBufferListCallback(std::shared_ptr<AudioBufferSPSC<float>> buf, float* input, int write_size);
 
   /**
    *  Callback passed to PortAudio
@@ -213,6 +224,7 @@ class VorbisManager {
    *  The "critical" buffer which is used by our PortAudio callback function.
    */ 
   AudioBufferSPSC<float>* critical_buffer_;
+  // TODO: Should this in fact be volatile???
 
   /**
    *  The audiofile which is being managed.

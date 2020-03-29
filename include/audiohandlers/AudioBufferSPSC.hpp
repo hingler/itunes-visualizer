@@ -203,6 +203,9 @@ class AudioBufferSPSC {
    * Returns a pointer if the memory requested exists, otherwise
    * returns a nullptr.
    * 
+   * In the event of a multichannel format, samples are returned in the
+   * order they were inserted.
+   * 
    * Arguments:
    *  - count, the number of elements we are attempting to read.
    * 
@@ -237,6 +240,39 @@ class AudioBufferSPSC {
     read_marker_.fetch_add(count, std::memory_order_acq_rel);
 
     return readzone_;
+  }
+
+  /**
+   *  Instead of using the internal buffer, reads directly to a provided
+   *  output buffer. Returns whether or not the read option
+   *  was successful.
+   */ 
+  bool ReadToBuffer(uint32_t count, BUFFER_UNIT* output) {
+    std::lock_guard<std::mutex> lock(read_lock_);
+    if (reader_thread_.safesize < count) {
+      UpdateReaderThread();
+
+      if (reader_thread_.safesize < count) {
+        return false; 
+      }
+    }
+
+    uint32_t masked_read = Mask(reader_thread_.position);
+    for (int i = 0; i < count; i++) {
+      if (masked_read >= buffer_capacity_) {
+        masked_read -= buffer_capacity_;
+      }
+      output[i] = buffer_[masked_read++];
+    }
+
+    reader_thread_.position = MaskTwo(reader_thread_.position + count);
+    reader_thread_.safesize -= count;
+
+    // update read atomic
+    shared_read_.store(reader_thread_.position, std::memory_order_release);
+    read_marker_.fetch_add(count, std::memory_order_acq_rel);
+
+    return true;
   }
 
   BUFFER_UNIT** Read_Chunked(uint32_t framecount) {
@@ -305,6 +341,10 @@ class AudioBufferSPSC {
    * Write to the buffer.
    * Returns whether or not the write was successful --
    * false if not enough room, true otherwise.
+   * 
+   * If mixing this write call with other chunked calls,
+   * entries must be interleaved, with a series of n samples
+   * containing each sample for all n channels in a frame.
    */ 
   bool Write(const BUFFER_UNIT* data, uint32_t count) {
     std::lock_guard<std::mutex> lock(write_lock_);
@@ -429,6 +469,10 @@ class AudioBufferSPSC {
 
   uint32_t GetItemsRead() const {
     return read_marker_.load(std::memory_order_acq_rel);
+  }
+
+  int GetChannelCount() const {
+    return channel_count_;
   }
 
   ~AudioBufferSPSC() {

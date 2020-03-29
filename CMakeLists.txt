@@ -20,7 +20,8 @@ add_library(vorbis src/audiohandlers/stb_vorbis.c
 
 target_include_directories(timing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_include_directories(DFT PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(vorbis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(vorbis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include 
+                                          ${CMAKE_CURRENT_SOURCE_DIR}/deps/portaudio/include)
 
 set_target_properties(vorbis 
                       PROPERTIES LINKER_LANGUAGE CXX)
@@ -64,7 +65,7 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
 # Now simply link against gtest or gtest_main as needed. Eg
 set(test_dir ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 
-FILE(GLOB TESTFILES ${test_dir}/*.cpp)
+FILE(GLOB TESTFILES ${test_dir}/*test.cpp)
 
 set(timingtest_deps timing)
 set(DFTtest_deps DFT)

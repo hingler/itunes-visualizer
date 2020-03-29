@@ -124,11 +124,19 @@ void VorbisManager::WriteThreadFn() {
 
   PaError err;
 
+  // todo: move this init call into the VM constructor (we need it for the lifetime,
+  //                                                    or even longer)
   err = Pa_Initialize();
 
   if (err != paNoError) {
     // cleanup
+    run_thread_.store(false, std::memory_order_release);
+    // eesh
+    return;
   }
+
+  // TODO: Should this in fact be volatile???
+  std::atomic_flag callback_signal;
 
   PaStream* stream;
   const int devnum = 6;   // again i think
@@ -139,8 +147,15 @@ void VorbisManager::WriteThreadFn() {
   outParam.device = 6;
   outParam.hostApiSpecificStreamInfo = NULL;
   outParam.sampleFormat = paFloat32;
-  outParam.suggestedLatency = info->defaultLowOutputLatency;
+  outParam.suggestedLatency = info->defaultHighOutputLatency; // temporary :)
+  // offset timeinfo based on suggestedLatency?
 
+  // NOTE: data passed into stream may have to be volatile?
+  // probably everything passed in here should be --
+  // given that it can be called at interrupt level
+
+  // i think the bits on threads are bullshit but idk
+  // create a small struct which encompasses the crit buffer and the signal
   err = Pa_OpenStream(&stream,
                       NULL,
                       &outParam,
@@ -148,18 +163,51 @@ void VorbisManager::WriteThreadFn() {
                       paFramesPerBufferUnspecified,
                       paNoFlag,
                       VorbisManager::PaCallback,
-                      NULL);
+                      reinterpret_cast<void*>(&callback_signal));
+  packet.thread_signal.clear();
+  if (err != paNoError) {
+    // cleanup again
+  }
+
+  for (;;) {
+    if (!packet.vm_signal.test_and_set()) {
+      // kill signal from thread
+      break;
+    }
+
+    // continue unabated
+    if (!PopulateBuffers(write_threshold)) {
+      // stream is empty -- done reading
+      break;
+    }
+  }
+
+  // wait for the callback to wind down
+  while (callback_signal.test_and_set());
+  // callback is done -- killit
+  Pa_CloseStream(stream);
+  err = Pa_Terminate();
+  if (err != paNoError) {
+    // something is fucky!
+  }
+  run_thread_.store(false, std::memory_order_release);
 }
 
 void VorbisManager::EraseOrCallback(const std::function<void(std::shared_ptr<FloatBuf>)>& func) {
+  // ptr
   std::shared_ptr<AudioBufferSPSC<float>> ptr;
+  // lock the list
   std::lock_guard lock(buffer_list_lock_);
   auto itr = buffer_list_.begin();
   while (itr != buffer_list_.end()) {
+    // get shared from weak
     ptr = itr->lock();
+    // see if it is in fact expired
     if (itr->expired()) {
+      // delete it if so
       itr = buffer_list_.erase(itr);
     } else {
+      // perform callback otherwise
       func(ptr);
     }
   }
@@ -170,17 +218,83 @@ void VorbisManager::EraseOrCallback(const std::function<void(std::shared_ptr<Flo
 // send the request to all threads which are not replaced, one by one
 // waiting for their completion is a bit finicky
 // not right now though
-void VorbisManager::PopulateBuffers(int write_size) {
+bool VorbisManager::PopulateBuffers(int write_size) {
   if (write_size > critical_buffer_->Capacity()) {
     // something is wrong!
+    return false;
+    // what the fuck are you doing broh!
   }
   
   // read from vorbis
-  stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, read_buffer_, write_size);
-  // wait until we can populate
-  while (critical_buffer_->GetMaximumWriteSize() < write_size);
-  critical_buffer_->Write(read_buffer_, write_size);
-  
-  
+  int readsize = stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, read_buffer_, write_size);
+  // spin until space is available
+  while (critical_buffer_->GetMaximumWriteSize() < readsize);
+  // write to crit buffer
+  critical_buffer_->Write(read_buffer_, readsize);
+  // call our force callback
+  auto callback = [this, readsize](std::shared_ptr<FloatBuf> buf) {
+    FillBufferListCallback(buf, read_buffer_, readsize);
+  };
+
+  EraseOrCallback(callback);
+  // return false if we're at the end (this should be OK, problems may appear :/)
+  return (readsize == write_size);
+}
+
+void VorbisManager::FillBufferListCallback(std::shared_ptr<FloatBuf> buf, float* input, int write_size) {
+  // try to write
+  if (!buf->Write(input, write_size)) {
+    // if it fails...
+    // try to FORCE WRITE
+    buf->Force_Write(input, write_size);
+  }
+}
+
+int VorbisManager::PaCallback(  const void* input,
+                                void* output,
+                                unsigned long frameCount,
+                                const PaStreamCallbackTimeInfo* info,
+                                PaStreamCallbackFlags statusFlags,
+                                void* userdata  )
+{
+  CallbackPacket* packet = reinterpret_cast<CallbackPacket*>(userdata);
+  float* outputData = reinterpret_cast<float*>(output);
+  FloatBuf* buf = packet->buf;
+  int samplecount = frameCount * buf->GetChannelCount();
+  // try to read
+  // if we need to do postprocessing this can be overwritten
+  // TODO: could probably get rid of the default read as
+  //       this style is the only one we really need but oh well :/
+
+
+  // lol wrote this because i didnt even *think* it would
+  // be necessary to read straight to the buffer what a mongoloid
+  if (!buf->ReadToBuffer(samplecount, outputData)) {
+    // if it fails, check if the buffer is empty
+    if (buf->Empty()) {
+      // send zeroes to the buffer
+      for (int i = 0; i < samplecount; i++) {
+        outputData[i] = 0.0f;
+      }
+      // call on the write thread to clean up
+      packet->callback_signal.clear();
+    } else {
+      // there's at least some data that we can read
+      // read what we can and pad the rest with zeroes
+      float* remainingData;
+      int samples_read = buf->Peek(samplecount, &remainingData);
+      int offset;
+      for (offset = 0; offset < samples_read; offset++) {
+        outputData[offset] = remainingData[offset];
+        // extract everything
+      }
+      // read zeroes into the rest
+      for (; offset < samplecount; offset++) {
+        outputData[offset] = 0.0f;
+      }
+    }
+  }
+
+  return 0;
 }
 
