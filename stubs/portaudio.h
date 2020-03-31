@@ -3,11 +3,14 @@
 
 #define paNoError 0
 #define paFloat32 1
-#define paFramesPerBufferUnspecified 2
+#define paFramesPerBufferUnspecified 6000000
 #define paNoFlag 3
 
 // for assertions
 #include "gtest/gtest.h"
+
+#include <thread>
+#include <atomic>
 
 // TODO: Flesh out the stub code to do some
 //       verification of inputs/outputs
@@ -29,7 +32,21 @@ typedef int PaError;
 // getdeviceinfo: return the same thing every time (some dummy format)
 // most pointers will just map to void* unless params are necessary
 
+// TESTING BITS
+
+static bool is_pa_active = false;
+
+// represents the callback thread
+static std::thread running_thread;
+
+// references a heap allocated vorbis in memory, used to ensure our callback function returns correctly
+static float* audio_comparison;
+
+// INFRASTRUCTURE BITS
+
 // 32 bytes
+// packet created by application
+// just make sure the values are semi valid
 struct PaStreamParameters {
   double suggestedLatency;
   void* hostApiSpecificStreamInfo;
@@ -38,25 +55,34 @@ struct PaStreamParameters {
   int device;
 };
 
-struct PaStream {
+// used to represent streams and deviceinfo
+struct PaDeviceInfo {
   double defaultLowOutputLatency;
   double defaultHighOutputLatency;
-  int maxOutputChannels;
-  bool isStream;
-  char* name;
   double defaultSampleRate;
+  char* name;
+  int maxOutputChannels;
 };
 
-typedef PaStream PaDeviceInfo;
+struct PaStream {
+  PaCallback* callback;
+  void* userdata;
+  unsigned long framecount;
+  std::thread callback_thread;
+  std::atomic_flag callback_signal;
+}
 
+// unused atm
 struct PaStreamCallbackFlags {
   char cum;
 };
 
+// unused
 struct PaStreamCallbackTimeInfo {
   char cumtwo;
 };
 
+// callback shit
 typedef int(*PaCallback)(   const void* input,
                             void* output,
                             unsigned long frameCount,
@@ -65,10 +91,15 @@ typedef int(*PaCallback)(   const void* input,
                             void* userdata  );
 
 int Pa_Initialize() {
-  return paNoError;
+  // read sample file
+  // allocate space
+  // store in static float
+  // pa_active = true
 }
 
 int Pa_Terminate() {
+  // free static float space
+  // pa_active = false
   return paNoError;
 }
 
@@ -84,15 +115,19 @@ int Pa_OpenStream(PaStream**,
                   void* userdata  )
 {
 
-  // setup a thread which will call our callback
-  return 1;
+  // heap allocate a pa stream
+  // set it up
+  // return a non error value
+  return paNoError;
 }
 
+// nothing really
 char* Pa_GetErrorText(int err) {
   char* hello = new char[16];
   return hello;
 }
 
+// dummy result
 const PaDeviceInfo* Pa_GetDeviceInfo(int num) {
   PaDeviceInfo* ret = new PaDeviceInfo();
   // memory leak but who gives a shit
@@ -116,10 +151,12 @@ int Pa_CloseStream(PaStream* stream) {
   return paNoError;
 }
 
+// actually sleeping is probably best
 void Pa_Sleep(int time) {
   std::this_thread::sleep_for(std::chrono::milliseconds(time));
 }
 
+// dummy value
 int Pa_GetDeviceCount() {
   return 16;
 }
