@@ -21,7 +21,7 @@ add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbis src/audiohandlers/stb_vorbis.c
                    src/audiohandlers/VorbisManager.cpp)
 
-set(pa_stub OFF)
+set(pa_stub ON)
 
 if(${pa_stub})
   set(pa_incdir ${CMAKE_CURRENT_SOURCE_DIR}/stubs)
