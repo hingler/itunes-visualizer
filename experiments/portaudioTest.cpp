@@ -114,6 +114,7 @@ int main(int argc, char** argv) {
   stb_vorbis_close(vorb);
   // terminate PA
   std::cout << "closing stream..." << std::endl;
+  Pa_CloseStream(stream);
   err = Pa_Terminate();
   if (err != paNoError) {
     PrintErrInfo(err);

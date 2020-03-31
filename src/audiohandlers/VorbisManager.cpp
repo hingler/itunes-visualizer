@@ -1,5 +1,4 @@
 #include "audiohandlers/VorbisManager.hpp"
-#include "portaudio.h"
 
 typedef AudioBufferSPSC<float> FloatBuf;
 VorbisManager* VorbisManager::GetVorbisManager(int twopow, char* filename) {
@@ -140,14 +139,14 @@ void VorbisManager::WriteThreadFn() {
 
   PaStream* stream;
   const int devnum = 6;   // again i think
-  const PaDeviceInfo* info = Pa_GetDeviceInfo(devnum);
+  const PaDeviceInfo* devinfo = Pa_GetDeviceInfo(devnum);
   PaStreamParameters outParam;
 
-  outParam.channelCount = info->maxOutputChannels;
+  outParam.channelCount = channel_count_;
   outParam.device = 6;
   outParam.hostApiSpecificStreamInfo = NULL;
   outParam.sampleFormat = paFloat32;
-  outParam.suggestedLatency = info->defaultHighOutputLatency; // temporary :)
+  outParam.suggestedLatency = devinfo->defaultHighOutputLatency; // temporary :)
   // offset timeinfo based on suggestedLatency?
 
   // NOTE: data passed into stream may have to be volatile?
@@ -265,6 +264,8 @@ int VorbisManager::PaCallback(  const void* input,
   // if we need to do postprocessing this can be overwritten
   // TODO: could probably get rid of the default read as
   //       this style is the only one we really need but oh well :/
+
+  // also: can return paComplete 
 
 
   // lol wrote this because i didnt even *think* it would

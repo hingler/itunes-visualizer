@@ -45,7 +45,9 @@ struct BufferPair {
 
 // copied from spsctests
 // todo: ensure contents are blocked neatly
+// side note: issues due to how failed assertions propagate (they dont really)
 void WriteThread(BufferPair* buf, uint32_t contents[]) {
+  SCOPED_TRACE("WRITE THREAD");
   int offset = 0;
 
   while (offset < (contents_length * 2)) {
@@ -64,6 +66,7 @@ void WriteThread(BufferPair* buf, uint32_t contents[]) {
   std::cout << "write thread complete" << std::endl;
 }
 void ReadThread_STEREO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp time, int threadct) {
+  SCOPED_TRACE("STEREO READ THREAD");
   int seek_sample = 0;
   int seek_sample_last = 0;
   uint32_t** data;
@@ -108,6 +111,7 @@ void ReadThread_STEREO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrct
 }
 
 void ReadThread_MONO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp time, int threadct) {
+  SCOPED_TRACE("READ MONO THREAD");
   // read from a singular buffer
   // verify its contents
   int seek_sample = 0;

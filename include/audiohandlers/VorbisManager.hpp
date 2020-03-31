@@ -53,6 +53,8 @@ struct ThreadPacket {
   std::atomic_flag vm_signal;         // flag raised by the manager to communicate to the thread.
 };
 
+// TODO: This should not be returned -- instead, the ReadOnlyBuffer should make use of it
+//       for calls to synchronize
 struct TimeInfo {
   TimeInfo() : sample_rate_(0), 
                playback_epoch_(std::chrono::high_resolution_clock::now()) {}
