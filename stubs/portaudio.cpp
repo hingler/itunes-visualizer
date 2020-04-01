@@ -16,13 +16,10 @@ float* audio_comparison;
 void Set_Filename(std::string name) {
   file_ref = new std::string();
   *file_ref = name;
-  std::cout << *file_ref << std::endl;
-  std::cout << file_ref << std::endl;
 }
 
 int Pa_Initialize() {
   int err;
-  std::cout << *file_ref << std::endl;
   stb_vorbis* stream = stb_vorbis_open_filename(file_ref->c_str(), &err, NULL);
   if (stream == NULL) {
     std::cout << file_ref << std::endl;
@@ -32,15 +29,15 @@ int Pa_Initialize() {
   
   int bytes_left = stb_vorbis_stream_length_in_samples(stream) * 2;
   std::cout << "length: " << bytes_left << std::endl;
-  audio_comparison = new float[bytes_left];
-  int bytes_read;
-  int offset = 0;
-  do {
-    bytes_read = stb_vorbis_get_samples_float_interleaved(stream, 2, &audio_comparison[offset], (bytes_left > 1024 ? 1024 : bytes_left));
-    offset += bytes_read;
-    // oops
-    bytes_left -= bytes_read;
-  } while (bytes_read != 0);
+  // audio_comparison = new float[bytes_left];
+  // int bytes_read;
+  // int offset = 0;
+  // do {
+  //   bytes_read = stb_vorbis_get_samples_float_interleaved(stream, 2, &audio_comparison[offset], (bytes_left > 1024 ? 1024 : bytes_left));
+  //   offset += bytes_read;
+  //   // oops
+  //   bytes_left -= bytes_read;
+  // } while (bytes_read != 0);
   // read sample file
   // allocate space
   // store in static float
@@ -51,6 +48,7 @@ int Pa_Initialize() {
   #endif
   is_pa_active = true;
   std::cout << "all good" << std::endl;
+  stb_vorbis_close(stream);
   return paNoError;
 }
 
@@ -122,27 +120,21 @@ void Dummy_ThreadFunc(PaStream* stream) {
       }
     }
 
-    std::cout << "framecount" << framecount << std::endl;
+    // std::cout << "framecount" << framecount << std::endl;
 
     // todo: handle returned args
     // dummy val passed to callback
     stream->callback(nullptr, max_output, framecount, nullptr, {'c'}, stream->userdata);
-    std::cout << "ran callback!" << std::endl;
-    for (int i = 0; i < framecount * stream->channel_count; i++) {
-      // verify against audio reference
-      #ifdef GTEST_API_
-        ASSERT_EQ(max_output[i], audio_comparison[offset + i]);
-      #endif
-    }
+    // std::cout << "ran callback!" << std::endl;
 
     offset += (framecount * stream->channel_count);
-    std::cout << "new offset: " << offset << std::endl;
+    // std::cout << "new offset: " << offset << std::endl;
 
     // number of samples processed
     int sleep_time = 1000000000 * (framecount / stream->sample_rate);
     // number of nanoseconds of audio
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(25));
+    std::this_thread::sleep_for(std::chrono::nanoseconds(sleep_time));
   }
 }
 
@@ -160,10 +152,12 @@ int Pa_StopStream(PaStream* stream) {
   // join it
   stream->callback_signal.clear();
   stream->callback_thread.join();
+  delete stream;
   return paNoError;
 }
 
 int Pa_CloseStream(PaStream* stream) {
+  Pa_StopStream(stream);
   return paNoError;
 }
 

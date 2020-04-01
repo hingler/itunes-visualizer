@@ -16,24 +16,6 @@
 #include <atomic>
 #include <chrono>
 
-// TODO: Flesh out the stub code to do some
-//       verification of inputs/outputs
-
-//        Additionally: the threading code should be decent
-//        to ensure that the input/output functions correctly
-//        it may be necessary to use some setup functions
-//        which the actual test code can hook into in order to
-//        pass audio content
-
-// issue: declaration and definition are both on here
-// two units have same definitions despite header guard
-// that's only preprocessor shit and so it fucks up
-
-// templates don't deal with this as nothing is defined (it's all templates)
-// ok so time to move all of this shit
-
-// note: this one's a real piece of shit
-
 
 typedef int PaError;
 

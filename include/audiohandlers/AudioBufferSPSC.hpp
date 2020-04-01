@@ -402,7 +402,6 @@ class AudioBufferSPSC {
   uint32_t GetMaximumWriteSize() {
     std::lock_guard<std::mutex> lock(write_lock_);
     UpdateWriterThread();
-    std::cout << writer_thread_.safesize;
     return writer_thread_.safesize;
   }
 

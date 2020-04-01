@@ -15,46 +15,6 @@
 
 // TODO: Fix multiple definition problems
 
-/**
- *  A read-only wrapper for our AudioBufferSPSC which gives the user single-thread access
- *  to the audio buffer's contents. Only exposes chunked functions, to ensure that the read
- *  thread does not desynchronize. We don't really care what the write thread does.
- */ 
-class ReadOnlyBuffer {
- public:
-  /**
-   *  All of the following functions wrap the existing functionality for the AudioBufferSPSC class,
-   *  with BUFFER_UNIT = float. Please refer to that class for documentation.
-   */
-  ReadOnlyBuffer(std::shared_ptr<AudioBufferSPSC<float>> buffer) : buffer_(buffer) {}
-
-  size_t Peek_Chunked(uint32_t framecount, float*** output) {
-    return buffer_->Peek_Chunked(framecount, output);
-  }
-
-  float** Read_Chunked(uint32_t framecount) {
-    return buffer_->Read_Chunked(framecount);
-  }
-
-  // use the timeinfo here
-  void Synchronize_Chunked(uint32_t frame_num) {
-    buffer_->Synchronize_Chunked(frame_num);
-  }
-
-  ~ReadOnlyBuffer() { }
-
- private:
-  std::shared_ptr<AudioBufferSPSC<float>> buffer_;
-};
-
-/**
- *  A pair of atomic flags used to facilitate communication between our thread and our vorbis manager. 
- */ 
-struct ThreadPacket {
-  std::atomic_flag thread_signal;     // flag raised by the thread to communicate to the manager.
-  std::atomic_flag vm_signal;         // flag raised by the manager to communicate to the thread.
-};
-
 // TODO: This should not be returned -- instead, the ReadOnlyBuffer should make use of it
 //       for calls to synchronize
 struct TimeInfo {
@@ -112,6 +72,54 @@ struct TimeInfo {
 };
 
 /**
+ *  A read-only wrapper for our AudioBufferSPSC which gives the user single-thread access
+ *  to the audio buffer's contents. Only exposes chunked functions, to ensure that the read
+ *  thread does not desynchronize. We don't really care what the write thread does.
+ */ 
+class ReadOnlyBuffer {
+ public:
+  /**
+   *  All of the following functions wrap the existing functionality for the AudioBufferSPSC class,
+   *  with BUFFER_UNIT = float. Please refer to that class for documentation.
+   */
+  ReadOnlyBuffer(std::shared_ptr<AudioBufferSPSC<float>> buffer, const TimeInfo* info) : buffer_(buffer), info_(info) {}
+
+  size_t Peek_Chunked(uint32_t framecount, float*** output) {
+    return buffer_->Peek_Chunked(framecount, output);
+  }
+
+  float** Read_Chunked(uint32_t framecount) {
+    return buffer_->Read_Chunked(framecount);
+  }
+
+  // use the timeinfo here
+  int Synchronize_Chunked() {
+    int samplenum = info_->GetCurrentSample();
+    if (samplenum == -1) {
+      return -1;
+    }
+
+    buffer_->Synchronize_Chunked(samplenum);
+    return samplenum;
+  }
+
+  ~ReadOnlyBuffer() { }
+
+  const TimeInfo* info_;
+
+ private:
+  std::shared_ptr<AudioBufferSPSC<float>> buffer_;
+};
+
+/**
+ *  A pair of atomic flags used to facilitate communication between our thread and our vorbis manager. 
+ */ 
+struct ThreadPacket {
+  std::atomic_flag thread_signal;     // flag raised by the thread to communicate to the manager.
+  std::atomic_flag vm_signal;         // flag raised by the manager to communicate to the thread.
+};
+
+/**
  *  A packet of data sent to our PaCallback.
  */ 
 struct CallbackPacket {
@@ -164,11 +172,6 @@ class VorbisManager {
    *  Returns whether or not the write thread is running currently.
    */ 
   bool IsThreadRunning();
-
-  /**
-   *  Return the TimeInfo object associated with this manager.
-   */ 
-  const TimeInfo* GetTimeInfo();
 
   /**
    *  Destructor for the VorbisManager.

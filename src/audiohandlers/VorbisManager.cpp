@@ -17,8 +17,6 @@ VorbisManager* VorbisManager::GetVorbisManager(int twopow, std::string filename)
 
   stb_vorbis* file = stb_vorbis_open_filename(filename.c_str(), &err, NULL);
   if (file == NULL) {
-    std::cout << "failed to read file" << std::endl;
-    std::cout << err << std::endl;
     // error occurred
     return nullptr;
   }
@@ -33,7 +31,8 @@ ReadOnlyBuffer* VorbisManager::CreateBufferInstance() {
   std::shared_ptr<FloatBuf> result(new FloatBuf(buffer_power_, channel_count_));
   std::lock_guard lock(buffer_list_lock_);
   buffer_list_.push_front(result);
-  return new ReadOnlyBuffer(result);
+  
+  return new ReadOnlyBuffer(result, const_cast<const TimeInfo*>(&info));
 }
 
 void VorbisManager::StartWriteThread() {
@@ -93,16 +92,11 @@ bool VorbisManager::IsThreadRunning() {
   return run_thread_.load(std::memory_order_acquire);
 }
 
-/**
- *  Returns a const pointer to a TimeInfo, a struct which provides functions which assist in
- *  synchronizing read threads with audio playback.
- */ 
-const TimeInfo* VorbisManager::GetTimeInfo() {
-  return const_cast<const TimeInfo*>(&info);
-}
-
 VorbisManager::~VorbisManager() {
-  StopWriteThread();
+  if (run_thread_.load(std::memory_order_acquire)) {
+    StopWriteThread();
+  }
+
   stb_vorbis_close(audiofile_);
   delete critical_buffer_;
   delete[] read_buffer_;
@@ -123,15 +117,10 @@ VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : info(), buffer_powe
 }
 
 void VorbisManager::WriteThreadFn() {
-  std::cout << "offset: " << stb_vorbis_get_sample_offset(audiofile_);
-  // write this
-  std::cout << "thread spun" << std::endl;
   uint32_t write_threshold = critical_buffer_->Capacity() / 2;
   int samples_read;
 
   PaError err;
-
-  std::cout << "pre-init" << std::endl;
 
   // todo: move this init call into the VM constructor (we need it for the lifetime,
   //                                                    or even longer)
@@ -143,8 +132,6 @@ void VorbisManager::WriteThreadFn() {
     // eesh
     return;
   }
-
-  std::cout << "init'd" << std::endl;
 
   // TODO: Should this in fact be volatile???
 
@@ -158,6 +145,8 @@ void VorbisManager::WriteThreadFn() {
   outParam.hostApiSpecificStreamInfo = NULL;
   outParam.sampleFormat = paFloat32;
   outParam.suggestedLatency = devinfo->defaultHighOutputLatency; // temporary :)
+
+  PopulateBuffers(critical_buffer_->Capacity());
   // offset timeinfo based on suggestedLatency?
 
   // NOTE: data passed into stream may have to be volatile?
@@ -181,7 +170,6 @@ void VorbisManager::WriteThreadFn() {
                       VorbisManager::PaCallback,
                       reinterpret_cast<void*>(callback_packet));
   Pa_StartStream(stream);
-  std::cout << "open!" << std::endl;
   packet.thread_signal.clear();
   if (err != paNoError) {
     // cleanup again
@@ -194,7 +182,6 @@ void VorbisManager::WriteThreadFn() {
       // kill signal from thread
       break;
     }
-    std::cout << "printedonce" << std::endl;
     // continue unabated
     if (!PopulateBuffers(write_threshold)) {
       // stream is empty -- done reading
@@ -203,16 +190,19 @@ void VorbisManager::WriteThreadFn() {
   }
 
   // wait for the callback to wind down
-  while (callback_packet->callback_signal.test_and_set());
+  while (callback_packet->callback_signal.test_and_set()) {
+    std::this_thread::sleep_for(std::chrono::milliseconds(10));
+  }
   // callback is done -- killit
   Pa_CloseStream(stream);
-  std::cout << "stream closed" << std::endl;
   err = Pa_Terminate();
   if (err != paNoError) {
     // something is fucky!
   }
+
   run_thread_.store(false, std::memory_order_release);
-  std::cout << "done!" << std::endl;
+  packet.thread_signal.clear();
+  delete callback_packet;
 }
 
 void VorbisManager::EraseOrCallback(const std::function<void(std::shared_ptr<FloatBuf>)>& func) {
@@ -251,21 +241,18 @@ bool VorbisManager::PopulateBuffers(int write_size) {
   // read from vorbis
   int readsize = stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, read_buffer_, write_size);
   // spin until space is available
-  while (critical_buffer_->GetMaximumWriteSize() < write_size) {
-    std::cout << "waiting..." << std::endl;
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-  }
+  while (critical_buffer_->GetMaximumWriteSize() < write_size);
+
+  int writesize = (readsize * channel_count_);
   // write to crit buffer
-  critical_buffer_->Write(read_buffer_, (readsize * 2));
-  // call our force callback
-  auto callback = [this, readsize](std::shared_ptr<FloatBuf> buf) {
-    FillBufferListCallback(buf, read_buffer_, readsize);
+  auto callback = [this, writesize](std::shared_ptr<FloatBuf> buf) {
+    FillBufferListCallback(buf, read_buffer_, writesize);
   };
 
   EraseOrCallback(callback);
+  critical_buffer_->Write(read_buffer_, writesize);
+  // call our force callback
   // return false if we're at the end (this should be OK, problems may appear :/)
-  std::cout << "bytes written: " << readsize * 2 << std::endl;
-  std::cout << std::endl;
 
 
 
@@ -301,8 +288,7 @@ int VorbisManager::PaCallback(  const void* input,
 
 
   // lol wrote this because i didnt even *think* it would
-  // be necessary to read straight to the buffer what a mongoloid
-  std::cout << buf->GetItemsRead();
+  // be necessary to read straight to the buffer
   if (!buf->ReadToBuffer(samplecount, outputData)) {
     // if it fails, check if the buffer is empty
     if (buf->Empty()) {
@@ -311,7 +297,6 @@ int VorbisManager::PaCallback(  const void* input,
         outputData[i] = 0.0f;
       }
       // call on the write thread to clean up
-      std::cout << "its empty" << std::endl;
       packet->callback_signal.clear();
     } else {
       // there's at least some data that we can read
