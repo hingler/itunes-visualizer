@@ -109,7 +109,7 @@ TEST(VorbisManagerTests, ParseBuffer) {
   std::thread checker2(ReadStream, buffer, buf);
   std::thread checker3(ReadStream, buffer, buf);
   std::thread checker4(ReadStream, buffer, buf);
-  std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+  std::this_thread::sleep_for(std::chrono::milliseconds(15000));
 
   std::cout << "stopping the write thread..." << std::endl;
   mgr->StopWriteThread();
