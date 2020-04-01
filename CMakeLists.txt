@@ -18,24 +18,34 @@ set(deps_dir ${CMAKE_CURRENT_SOURCE_DIR}/deps)
 
 add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
-add_library(vorbis src/audiohandlers/stb_vorbis.c
-                   src/audiohandlers/VorbisManager.cpp)
+add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
+
+add_library(stb_vorbis src/audiohandlers/stb_vorbis.c)
 
 set(pa_stub ON)
 
 if(${pa_stub})
   set(pa_incdir ${CMAKE_CURRENT_SOURCE_DIR}/stubs)
+  
+  # build the PA stub
+
+  add_library(pastub ${CMAKE_CURRENT_SOURCE_DIR}/stubs/portaudio.cpp)
+  target_include_directories(pastub PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 else()
   set(pa_incdir ${deps_dir}/portaudio/include)
 endif()
 
 
 target_include_directories(timing PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(DFT PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_include_directories(vorbis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include 
-                                  PRIVATE ${pa_incdir})
 
-set_target_properties(vorbis 
+target_include_directories(DFT PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+target_include_directories(vorbismgr PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include 
+                                     PRIVATE ${pa_incdir})
+
+target_include_directories(stb_vorbis PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include/vorbis)
+
+set_target_properties(vorbismgr 
                       PROPERTIES LINKER_LANGUAGE CXX)
 
 # add_executable(itunes-visualizer src/main.cpp)
@@ -82,7 +92,12 @@ set(timingtest_deps timing)
 set(DFTtest_deps DFT)
 set(SPSCtest_deps )
 set(SPSCPerChanneltest_deps )
-set(Vorbistest_deps vorbis )
+
+if(${pa_stub})
+  set(Vorbistest_deps vorbismgr stb_vorbis pastub)
+else()
+  set(Vorbistest_deps vorbismgr stb_vorbis )
+endif()
 
 foreach(TESTFILE ${TESTFILES})
   get_filename_component(TESTNAME ${TESTFILE} NAME_WE)
@@ -95,16 +110,15 @@ endforeach(TESTFILE)
 
 if(NOT ${pa_stub})
   add_subdirectory(${deps_dir}/portaudio)
+  add_executable(portaudio_test ${exp_dir}/portaudioTest.cpp
+                              ${CMAKE_CURRENT_SOURCE_DIR}/src/audiohandlers/stb_vorbis.c)
+  target_include_directories(portaudio_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
+                                            PRIVATE ${pa_incdir})
 endif()
 
-add_executable(portaudio_test ${exp_dir}/portaudioTest.cpp
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/audiohandlers/stb_vorbis.c)
-target_include_directories(portaudio_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
-                                          PRIVATE ${pa_incdir})
+# target_compile_options(portaudio_test PRIVATE "-pthread")
 
-if (${pa_stub})
-  target_link_libraries(portaudio_test DFT)
-else()
+if (NOT ${pa_stub})
   target_link_libraries(vorbis portaudio)
   target_link_libraries(portaudio_test DFT portaudio)
 endif()

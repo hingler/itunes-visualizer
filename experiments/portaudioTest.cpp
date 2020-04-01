@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <cmath>
+#include <thread>
 
 #include <sys/ioctl.h>
 #include <unistd.h>

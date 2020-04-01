@@ -13,6 +13,8 @@
 #include <shared_mutex>
 #include <thread>
 
+// TODO: Fix multiple definition problems
+
 /**
  *  A read-only wrapper for our AudioBufferSPSC which gives the user single-thread access
  *  to the audio buffer's contents. Only exposes chunked functions, to ensure that the read
@@ -135,7 +137,7 @@ class VorbisManager {
    *    - A pointer to a heap-allocated VorbisManager, if the inputs are valid.
    *    - Returns nullptr otherwise.
    */ 
-  static VorbisManager* GetVorbisManager(int twopow, char* filename);
+  static VorbisManager* GetVorbisManager(int twopow, std::string filename);
 
   /**
    *  Creates a heap-allocated read-only buffer instance which can be used to get info

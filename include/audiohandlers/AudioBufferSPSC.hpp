@@ -1,27 +1,5 @@
 #ifndef AUDIOBUFFERSPSC_H_
 #define AUDIOBUFFERSPSC_H_
-// tha idea
-
-// use two structs to keep track of a "minimum guaranteed" access size
-
-// thank you to http://daugaard.org/blog/writing-a-fast-and-versatile-spsc-ring-buffer/
-// for being a guiding light in how to write this shit up
-
-// spsc:
-//  - on their own, the producer and consumer should have the resources necessary
-//    to read/write freely to some allowable extent.
-//
-//  - when our reader runs dry, we want to check a locked structure to verify its data.
-//    then continue on as normal.
-
-// for the callback, need a prealloc'd structure to read out to
-// also need some exterior "data" parameter where we can put that shit so that
-// this does necessitate a read "lock" so that we can get the data out in one piece
-// but the procedure should be quick
-
-// alternative:
-// if the other thread has stale data, could we justre bake in a fallback method?
-// i.e. attempt to fetch from the read buffer, then just pop the data if not possible?
 
 #include <atomic>
 #include <cstdint>
@@ -30,31 +8,7 @@
 
 #include <iostream>
 
-// TODO: Rework all functions to take channel count into account
-//       For the most part we'll copy the inline scheme from stb_vorbis
-//       And send back info in that same interleaved format
-//       The client is responsible for sorting that info out
-
-// Two options:
-//    - array of unit arrays
-//    - singular interleaved array
-// My concern is that the latter is going to be much easier to write
-// And doesn't require massive reworking of existing code
-// However the former will be better for like memory shit
-// For instance if we have to pass that info to DFT anyway
-// it makes no sense to interleave it if we need to allocate more space
-// to separate it
-
-// I'll go with the "unit array" solution
-// And rewrite the whole thing
-// Call it "SPSCMultiChannelAudioBuffer"
-
-// I wish there was a cleaner way to inherit some of the private behavior but whatever :/
-// possibly: move it to a separate inherited header, make all of the functions pub,
-//           and inherit w private modif?
-
 struct pc_marker {
-  pc_marker() : position(0), safesize(0) { }
   uint32_t position; // the index which the marker points to (masked 2x)
   uint32_t safesize;  // minimum number of elements which are guaranteed to be available
 };
@@ -72,8 +26,8 @@ class AudioBufferSPSC {
     buffer_(new BUFFER_UNIT[buffer_capacity_]),
     shared_read_(0),
     shared_write_(0),
-    reader_thread_(pc_marker()),
-    writer_thread_(pc_marker()),
+    reader_thread_({0, 0}),
+    writer_thread_({0, 0}),
     read_marker_(0),
     readzone_(new BUFFER_UNIT[buffer_capacity_]),
     channelzone_(new BUFFER_UNIT*[channel_count])
@@ -448,6 +402,7 @@ class AudioBufferSPSC {
   uint32_t GetMaximumWriteSize() {
     std::lock_guard<std::mutex> lock(write_lock_);
     UpdateWriterThread();
+    std::cout << writer_thread_.safesize;
     return writer_thread_.safesize;
   }
 
