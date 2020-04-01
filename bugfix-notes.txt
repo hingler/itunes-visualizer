@@ -1,0 +1,10 @@
+fixes to the vorbismanager
+
+	- StopWriteThread is only called on dtor if the thread is active
+	- Buffers are populated on first write call (avoids empty case)
+	- note: remove sleep call on thread wind down
+	
+	- write calls did not take channel size into account (new var: writesize)
+	- uninit'd run_thread_ value
+	- improper data passed to callback (should have been CallbackPacket, but only the signal was passed)
+	
