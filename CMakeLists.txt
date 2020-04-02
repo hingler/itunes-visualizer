@@ -94,9 +94,9 @@ set(SPSCtest_deps )
 set(SPSCPerChanneltest_deps )
 
 if(${pa_stub})
-  set(Vorbistest_deps vorbismgr stb_vorbis pastub)
+  set(Vorbistest_deps vorbismgr stb_vorbis pastub DFT)
 else()
-  set(Vorbistest_deps vorbismgr stb_vorbis )
+  set(Vorbistest_deps vorbismgr stb_vorbis DFT)
 endif()
 
 foreach(TESTFILE ${TESTFILES})

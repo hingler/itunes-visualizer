@@ -366,6 +366,9 @@ class AudioBufferSPSC {
       int to_skip = count - writer_thread_.safesize;
       // jump ahead a few
       reader_thread_.position = MaskTwo(reader_thread_.position + to_skip);
+      reader_thread_.safesize -= to_skip;
+      writer_thread_.safesize += to_skip;
+      shared_read_.store(reader_thread_.position, std::memory_order_release);
     }
 
     uint32_t masked_write = Mask(writer_thread_.position);

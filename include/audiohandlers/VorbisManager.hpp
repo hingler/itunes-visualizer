@@ -71,6 +71,8 @@ class ReadOnlyBuffer {
   // use the timeinfo here
   int Synchronize_Chunked();
 
+  int Size();
+
   ~ReadOnlyBuffer();
 
   const TimeInfo* info_;

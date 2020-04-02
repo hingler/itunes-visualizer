@@ -2,8 +2,12 @@
 #include "audiohandlers/VorbisManager.hpp"
 #include "audiohandlers/AudioBufferSPSC.hpp"
 #include "gtest/gtest.h"
+#include "audiohandlers/DFT.hpp"
 
 #include <string>
+
+#include <sys/ioctl.h>
+#include <unistd.h>
 
 // read a vorbis file
 // close it
@@ -12,7 +16,7 @@
 // give the buffer to the stub code to verify that the input is correct
 // and also that it does not terminate early
 
-const std::string testfile = "../experiments/flap_jack_scream.ogg";
+const std::string testfile = "../experiments/shawty.ogg";
 
 /**
  *  Some assurances on the basic state of a newly constructed manager
@@ -30,6 +34,37 @@ TEST(VorbisManagerTests, CreateManager) {
   delete mgr;
 }
 
+void DFTStream(ReadOnlyBuffer* buf) {
+  int offset = 0;
+  int samples_read;
+  float** output;
+  float* lreal;
+  float* limag;
+  float* amps;
+
+  
+  do {
+    offset = buf->Synchronize_Chunked() * 2;
+    samples_read = buf->Peek_Chunked(2048, &output);
+    dft::CalculateDFT(output[0], &lreal, &limag, samples_read);
+    amps = dft::GetAmplitudeArray(lreal, limag, samples_read);
+    winsize size;
+    ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
+    if (samples_read < 128) {
+      continue;
+    }
+    for (int i = 0; i < size.ws_row; i++) {
+      for (int j = 0; j < amps[i * 2]; j+= 2) {
+        std::cout << "=";
+      }
+      std::cout << "]" << std::endl;
+    }
+    std::this_thread::sleep_for(std::chrono::milliseconds(33));
+  } while (samples_read > 512);
+  std::cout << samples_read;
+  std::cout << "dft is done" << std::endl;
+}
+
 void ReadStream(float* check, ReadOnlyBuffer* buf) {
   int offset = 0;
   int samples_read;
@@ -38,54 +73,54 @@ void ReadStream(float* check, ReadOnlyBuffer* buf) {
     offset = buf->Synchronize_Chunked() * 2;
     samples_read = buf->Peek_Chunked(2048, &output);
     // note: left on 0, right on 1
-    for (int i = 0; i < samples_read; i += 64) {
+    // for (int i = 0; i < samples_read; i += 64) {
       
-      if (check[offset + (2 * i)] != output[0][i]) {
-        std::cout << "bad match: frame " << (offset/2 + i) << "L" << std::endl;
-        std::cout << "on frame " << i << std::endl;
+    //   if (check[offset + (2 * i)] != output[0][i]) {
+    //     std::cout << "bad match: frame " << (offset/2 + i) << "L" << std::endl;
+    //     std::cout << "on frame " << i << std::endl;
 
-        for (int j = 0; j < 32; j++) {
-          if (output[0][i] == check[offset + (2 * i) + j]) {
-            std::cout << "l-desync" << std::endl;
-            std::cout << j << std::endl;
-          }
-          if (output[0][i] == check[offset + (2 * i) - j]) {
-            std::cout << "l-desync" << std::endl;
-            std::cout << j << std::endl;
-          }
-        }
+    //     for (int j = 0; j < 32; j++) {
+    //       if (output[0][i] == check[offset + (2 * i) + j]) {
+    //         std::cout << "l-desync" << std::endl;
+    //         std::cout << j << std::endl;
+    //       }
+    //       if (output[0][i] == check[offset + (2 * i) - j]) {
+    //         std::cout << "l-desync" << std::endl;
+    //         std::cout << j << std::endl;
+    //       }
+    //     }
 
-        std::cout << check[offset + (2 * i)] << " expected " << output[0][i] << "actual" << std::endl;
-        //ASSERT_NEAR(output[0][i], check[offset + (2 * i)], 0.001);
-        //break;
-      }
+    //     std::cout << check[offset + (2 * i)] << " expected " << output[0][i] << "actual" << std::endl;
+    //     //ASSERT_NEAR(output[0][i], check[offset + (2 * i)], 0.001);
+    //     //break;
+    //   }
 
-      if (check[offset + (2 * i) + 1] != output[1][i]) {
-        std::cout << "bad match: frame " << (offset/2 + i) << "R" << std::endl;
-        std::cout << "on frame " << i << std::endl;
+    //   if (check[offset + (2 * i) + 1] != output[1][i]) {
+    //     std::cout << "bad match: frame " << (offset/2 + i) << "R" << std::endl;
+    //     std::cout << "on frame " << i << std::endl;
         
-        for (int j = 0; j < 32; j++) {
-          if (output[0][i] == check[offset + (2 * i) + j]) {
-            std::cout << "r-desync" << std::endl;
-            std::cout << j << std::endl;
-          }
-          if (output[0][i] == check[offset + (2 * i) - j]) {
-            std::cout << "r-desync" << std::endl;
-            std::cout << j << std::endl;
-          }
-        }
+    //     for (int j = 0; j < 32; j++) {
+    //       if (output[0][i] == check[offset + (2 * i) + j]) {
+    //         std::cout << "r-desync" << std::endl;
+    //         std::cout << j << std::endl;
+    //       }
+    //       if (output[0][i] == check[offset + (2 * i) - j]) {
+    //         std::cout << "r-desync" << std::endl;
+    //         std::cout << j << std::endl;
+    //       }
+    //     }
 
-        std::cout << check[offset + (2 * i) + 1] << " expected " << output[1][i] << "actual" << std::endl;
-        //ASSERT_NEAR(output[1][i], check[offset + (2 * i) + 1], 0.001);
-        //break;
-      }
-    }
+    //     std::cout << check[offset + (2 * i) + 1] << " expected " << output[1][i] << "actual" << std::endl;
+    //     //ASSERT_NEAR(output[1][i], check[offset + (2 * i) + 1], 0.001);
+    //     //break;
+    //   }
+    // }
     std::this_thread::sleep_for(std::chrono::milliseconds(15));
   } while (samples_read != 0);
   std::cout << "done\n\n\n" << std::endl;
 }
 
-TEST(VorbisManagerTests, ParseBuffer) {
+TEST(VorbisManagerTests, ShawtyWannaFuck) {
   int err;
   stb_vorbis* vorbis = stb_vorbis_open_filename(testfile.c_str(), &err, NULL);
   int filelen = stb_vorbis_stream_length_in_samples(vorbis);
@@ -106,10 +141,10 @@ TEST(VorbisManagerTests, ParseBuffer) {
   std::cout << "thread started" << std::endl;
   ASSERT_TRUE(mgr->IsThreadRunning());
   std::thread checker(ReadStream, buffer, buf);
-  std::thread checker2(ReadStream, buffer, buf);
-  std::thread checker3(ReadStream, buffer, buf);
-  std::thread checker4(ReadStream, buffer, buf);
-  std::this_thread::sleep_for(std::chrono::milliseconds(15000));
+  std::thread checker2(ReadStream, buffer, buf_two);
+  std::thread checker3(ReadStream, buffer, buf_three);
+  std::thread checker4(DFTStream, buf_four);
+  std::this_thread::sleep_for(std::chrono::milliseconds(140000));
 
   std::cout << "stopping the write thread..." << std::endl;
   mgr->StopWriteThread();
@@ -127,3 +162,5 @@ TEST(VorbisManagerTests, ParseBuffer) {
   delete buf_four;
   delete mgr;
 }
+
+// todo: delete a buffer partway through the thread

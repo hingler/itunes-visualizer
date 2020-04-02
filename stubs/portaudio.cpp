@@ -131,7 +131,7 @@ void Dummy_ThreadFunc(PaStream* stream) {
     // std::cout << "new offset: " << offset << std::endl;
 
     // number of samples processed
-    int sleep_time = 1000000000 * (framecount / stream->sample_rate);
+    int sleep_time = 980000000 * (framecount / stream->sample_rate);
     // number of nanoseconds of audio
 
     std::this_thread::sleep_for(std::chrono::nanoseconds(sleep_time));

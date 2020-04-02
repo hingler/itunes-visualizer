@@ -60,6 +60,10 @@ int ReadOnlyBuffer::Synchronize_Chunked() {
   return samplenum;
 }
 
+int ReadOnlyBuffer::Size() {
+  return buffer_->Size();
+}
+
 ReadOnlyBuffer::~ReadOnlyBuffer() { }
 
 // VORBISMANAGER CODE
