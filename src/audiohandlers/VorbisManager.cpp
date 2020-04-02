@@ -3,6 +3,67 @@
 #include <string>
 
 typedef AudioBufferSPSC<float> FloatBuf;
+
+// TIMEINFO CODE
+
+TimeInfo::TimeInfo() : sample_rate_(0),
+                       playback_epoch_(std::chrono::high_resolution_clock::now()) { }
+                      
+TimeInfo::TimeInfo(int sample_rate) : sample_rate_(sample_rate),
+                                      playback_epoch_(std::chrono::high_resolution_clock::now()) {}
+
+int TimeInfo::GetCurrentSample() const {
+  std::shared_lock<std::shared_mutex> lock(info_lock_);
+  if (sample_rate_ == 0) {
+    return -1;
+  }
+
+  std::chrono::duration<double, std::milli> offset =
+    std::chrono::high_resolution_clock::now() - playback_epoch_;
+  return (sample_rate_ * offset.count()) / 1000;
+}
+
+bool TimeInfo::IsThreadRunning() const {
+  std::shared_lock lock(info_lock_);
+  return (sample_rate_ <= 0);
+}
+
+void TimeInfo::SetSampleRate(int sample_rate) {
+  std::lock_guard<std::shared_mutex> lock(info_lock_);
+  sample_rate_ = sample_rate;
+}
+
+void TimeInfo::ResetEpoch() {
+  std::lock_guard<std::shared_mutex> lock(info_lock_);
+  playback_epoch_ = std::chrono::high_resolution_clock::now();
+}
+
+// READONLYBUFFER CODE
+ReadOnlyBuffer::ReadOnlyBuffer(std::shared_ptr<AudioBufferSPSC<float>> buffer, 
+                               const TimeInfo* info) : buffer_(buffer), info_(info) {}
+
+size_t ReadOnlyBuffer::Peek_Chunked(uint32_t framecount, float*** output) {
+  return buffer_->Peek_Chunked(framecount, output);
+}
+
+float** ReadOnlyBuffer::Read_Chunked(uint32_t framecount) {
+  return buffer_->Read_Chunked(framecount);
+}
+
+int ReadOnlyBuffer::Synchronize_Chunked() {
+  int samplenum = info_->GetCurrentSample();
+  if (samplenum == -1) {
+    return -1;
+  }
+
+  buffer_->Synchronize_Chunked(samplenum);
+  return samplenum;
+}
+
+ReadOnlyBuffer::~ReadOnlyBuffer() { }
+
+// VORBISMANAGER CODE
+
 VorbisManager* VorbisManager::GetVorbisManager(int twopow, std::string filename) {
 
   if (twopow <= 1) {

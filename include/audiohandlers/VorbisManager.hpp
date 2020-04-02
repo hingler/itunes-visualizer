@@ -18,48 +18,28 @@
 // TODO: This should not be returned -- instead, the ReadOnlyBuffer should make use of it
 //       for calls to synchronize
 struct TimeInfo {
-  TimeInfo() : sample_rate_(0), 
-               playback_epoch_(std::chrono::high_resolution_clock::now()) {}
-  TimeInfo(int sample_rate) : sample_rate_(sample_rate),
-                              playback_epoch_(std::chrono::high_resolution_clock::now()) {}
+  TimeInfo();
+  TimeInfo(int sample_rate);
 
   /**
    *  Returns the current sample, or -1 if nothing is currently playing.
    */ 
-  int GetCurrentSample() const {
-    std::shared_lock<std::shared_mutex> lock(info_lock_);
-    if (sample_rate_ == 0) {
-      return -1;
-    }
-
-    std::chrono::duration<double, std::milli> offset =
-      std::chrono::high_resolution_clock::now() - playback_epoch_;
-    return (sample_rate_ * offset.count()) / 1000;
-  }
+  int GetCurrentSample() const;
 
   /**
    *  Returns true if our PA callback thread is running, false otherwise.
    */ 
-  bool IsThreadRunning() const {
-    std::shared_lock lock(info_lock_);
-    return (sample_rate_ <= 0);
-  }
+  bool IsThreadRunning() const;
 
   /**
    *  Modifies the current sample rate.
    */ 
-  void SetSampleRate(int sample_rate) {
-    std::lock_guard<std::shared_mutex> lock(info_lock_);
-    sample_rate_ = sample_rate;
-  }
+  void SetSampleRate(int sample_rate);
 
   /**
    *  Resets the playback epoch to now.
    */ 
-  void ResetEpoch() {
-    std::lock_guard<std::shared_mutex> lock(info_lock_);
-    playback_epoch_ = std::chrono::high_resolution_clock::now();
-  }                   
+  void ResetEpoch();               
 
   int sample_rate_;
   std::chrono::time_point<std::chrono::high_resolution_clock> playback_epoch_;
@@ -82,28 +62,16 @@ class ReadOnlyBuffer {
    *  All of the following functions wrap the existing functionality for the AudioBufferSPSC class,
    *  with BUFFER_UNIT = float. Please refer to that class for documentation.
    */
-  ReadOnlyBuffer(std::shared_ptr<AudioBufferSPSC<float>> buffer, const TimeInfo* info) : buffer_(buffer), info_(info) {}
+  ReadOnlyBuffer(std::shared_ptr<AudioBufferSPSC<float>> buffer, const TimeInfo* info);
 
-  size_t Peek_Chunked(uint32_t framecount, float*** output) {
-    return buffer_->Peek_Chunked(framecount, output);
-  }
+  size_t Peek_Chunked(uint32_t framecount, float*** output);
 
-  float** Read_Chunked(uint32_t framecount) {
-    return buffer_->Read_Chunked(framecount);
-  }
+  float** Read_Chunked(uint32_t framecount);
 
   // use the timeinfo here
-  int Synchronize_Chunked() {
-    int samplenum = info_->GetCurrentSample();
-    if (samplenum == -1) {
-      return -1;
-    }
+  int Synchronize_Chunked();
 
-    buffer_->Synchronize_Chunked(samplenum);
-    return samplenum;
-  }
-
-  ~ReadOnlyBuffer() { }
+  ~ReadOnlyBuffer();
 
   const TimeInfo* info_;
 
