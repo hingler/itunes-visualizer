@@ -45,3 +45,7 @@ note on signaling:
   - Start: clear it, and set the thread running state to false. continue starting up the thread again
   - Stop: same thing. then do nothing.
   - also: add a "IsThreadRunning" function which will return whether or not the flag was cleared. Again, the first clear is intercepted by StartWriteThread, so if it is raised again, the thread has been stopped.
+
+  valgrind --fair-sched=yes
+
+  ^ proper thread wait loops
