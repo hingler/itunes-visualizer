@@ -22,7 +22,7 @@ add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
 
 add_library(stb_vorbis src/audiohandlers/stb_vorbis.c)
 
-set(pa_stub ON)
+set(pa_stub OFF)
 
 if(${pa_stub})
   set(pa_incdir ${CMAKE_CURRENT_SOURCE_DIR}/stubs)
@@ -110,8 +110,8 @@ endforeach(TESTFILE)
 
 if(NOT ${pa_stub})
   add_subdirectory(${deps_dir}/portaudio)
-  add_executable(portaudio_test ${exp_dir}/portaudioTest.cpp
-                              ${CMAKE_CURRENT_SOURCE_DIR}/src/audiohandlers/stb_vorbis.c)
+  add_executable(portaudio_test ${exp_dir}/portaudioTest.cpp)
+  target_link_libraries(portaudio_test stb_vorbis)
   target_include_directories(portaudio_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
                                             PRIVATE ${pa_incdir})
 endif()
@@ -119,7 +119,7 @@ endif()
 # target_compile_options(portaudio_test PRIVATE "-pthread")
 
 if (NOT ${pa_stub})
-  target_link_libraries(vorbis portaudio)
+  target_link_libraries(vorbismgr stb_vorbis portaudio)
   target_link_libraries(portaudio_test DFT portaudio)
 endif()
 

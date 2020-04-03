@@ -134,9 +134,9 @@ TEST(VorbisManagerTests, ShawtyWannaFuck) {
   ReadOnlyBuffer* buf_two = mgr->CreateBufferInstance();
   ReadOnlyBuffer* buf_three = mgr->CreateBufferInstance();
   ReadOnlyBuffer* buf_four = mgr->CreateBufferInstance();
-
-  Set_Filename(testfile);
-
+  #ifdef STUBONLY
+    Set_Filename(testfile);
+  #endif
   mgr->StartWriteThread();
   std::cout << "thread started" << std::endl;
   ASSERT_TRUE(mgr->IsThreadRunning());

@@ -4,6 +4,8 @@
 #ifndef PORTAUDIO_H_
 #define PORTAUDIO_H_
 
+#define STUBONLY
+
 #define paNoError 0
 #define paFloat32 1
 #define paFramesPerBufferUnspecified 6000000

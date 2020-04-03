@@ -49,3 +49,5 @@ note on signaling:
   valgrind --fair-sched=yes
 
   ^ proper thread wait loops
+  
+Also: move the PA files into the dependencies

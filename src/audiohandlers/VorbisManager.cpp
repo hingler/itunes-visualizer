@@ -70,6 +70,7 @@ ReadOnlyBuffer::~ReadOnlyBuffer() { }
 
 VorbisManager* VorbisManager::GetVorbisManager(int twopow, std::string filename) {
 
+
   if (twopow <= 1) {
     // unreasonable
     return nullptr;
@@ -77,6 +78,14 @@ VorbisManager* VorbisManager::GetVorbisManager(int twopow, std::string filename)
   int err;
 
   if (filename.empty()) {
+    return nullptr;
+  }
+
+  // determines whether PA has been initialized.
+  err = Pa_GetDeviceCount();
+
+  if (err < 0) {
+    // failed to initialize PA
     return nullptr;
   }
 
@@ -186,17 +195,6 @@ void VorbisManager::WriteThreadFn() {
   int samples_read;
 
   PaError err;
-
-  // todo: move this init call into the VM constructor (we need it for the lifetime,
-  //                                                    or even longer)
-  err = Pa_Initialize();
-
-  if (err != paNoError) {
-    // cleanup
-    run_thread_.store(false, std::memory_order_release);
-    // eesh
-    return;
-  }
 
   // TODO: Should this in fact be volatile???
 
