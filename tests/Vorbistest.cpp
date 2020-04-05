@@ -16,12 +16,13 @@
 // give the buffer to the stub code to verify that the input is correct
 // and also that it does not terminate early
 
-const std::string testfile = "../experiments/shawty.ogg";
+const std::string testfile = "../../testtunes.ogg";
 
 /**
  *  Some assurances on the basic state of a newly constructed manager
  */ 
 TEST(VorbisManagerTests, CreateManager) {
+  Pa_Initialize();
   VorbisManager* mgr = VorbisManager::GetVorbisManager(15, testfile);
   ASSERT_NE(mgr, nullptr);
   ASSERT_FALSE(mgr->IsThreadRunning());
@@ -32,6 +33,7 @@ TEST(VorbisManagerTests, CreateManager) {
 
   delete buf;
   delete mgr;
+  Pa_Terminate();
 }
 
 void DFTStream(ReadOnlyBuffer* buf) {
@@ -137,6 +139,7 @@ TEST(VorbisManagerTests, ShawtyWannaFuck) {
   #ifdef STUBONLY
     Set_Filename(testfile);
   #endif
+  std::cout << "here" << std::endl;
   mgr->StartWriteThread();
   std::cout << "thread started" << std::endl;
   ASSERT_TRUE(mgr->IsThreadRunning());
@@ -144,11 +147,12 @@ TEST(VorbisManagerTests, ShawtyWannaFuck) {
   std::thread checker2(ReadStream, buffer, buf_two);
   std::thread checker3(ReadStream, buffer, buf_three);
   std::thread checker4(DFTStream, buf_four);
-  std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+  std::cout << "start sleep" << std::endl;
+  std::this_thread::sleep_for(std::chrono::milliseconds(60000));
 
   // an issue arises with verifying this after a call to ForceWrite -- each buffer is adjusted independently
   // by some unknown amount, so we cannot determine where exactly in the file it is reading from.
-  // this is not an issue without verification, and it will not cause issues with PortAudio.
+  // this will not cause issues with PortAudio, only with the stub + file verification
 
   std::cout << "stopping the write thread..." << std::endl;
   mgr->StopWriteThread();
@@ -157,7 +161,6 @@ TEST(VorbisManagerTests, ShawtyWannaFuck) {
   checker2.join();
   checker3.join();
   checker4.join();
-
   delete buffer;
 
   delete buf;
