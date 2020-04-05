@@ -199,16 +199,17 @@ void VorbisManager::WriteThreadFn() {
   // TODO: Should this in fact be volatile???
 
   PaStream* stream;
-  const int devnum = 6;   // again i think
+  const int devnum = 1;   // again i think
   const PaDeviceInfo* devinfo = Pa_GetDeviceInfo(devnum);
   PaStreamParameters outParam;
 
   outParam.channelCount = channel_count_;
-  outParam.device = 6;
+  outParam.device = devnum;
   outParam.hostApiSpecificStreamInfo = NULL;
   outParam.sampleFormat = paFloat32;
   outParam.suggestedLatency = devinfo->defaultHighOutputLatency; // temporary :)
-
+  
+  // feel like this could be called within StartWriteThread but either/or i guess
   PopulateBuffers(critical_buffer_->Capacity());
   // offset timeinfo based on suggestedLatency?
 
@@ -233,6 +234,8 @@ void VorbisManager::WriteThreadFn() {
                       VorbisManager::PaCallback,
                       reinterpret_cast<void*>(callback_packet));
   Pa_StartStream(stream);
+  // todo: take latency into account
+  info.ResetEpoch();
   packet.thread_signal.clear();
   if (err != paNoError) {
     // cleanup again
@@ -253,9 +256,7 @@ void VorbisManager::WriteThreadFn() {
   }
 
   // wait for the callback to wind down
-  while (callback_packet->callback_signal.test_and_set()) {
-    std::this_thread::sleep_for(std::chrono::milliseconds(10));
-  }
+  while (callback_packet->callback_signal.test_and_set());
   // callback is done -- killit
   Pa_CloseStream(stream);
   err = Pa_Terminate();
@@ -375,6 +376,8 @@ int VorbisManager::PaCallback(  const void* input,
       for (; offset < samplecount; offset++) {
         outputData[offset] = 0.0f;
       }
+
+      packet->callback_signal.clear();
     }
   }
 
