@@ -1,7 +1,7 @@
 #ifndef VORBIS_MANAGER_H_
 #define VORBIS_MANAGER_H_
 
-#include "vorbis/stb_vorbis.h"
+#include "stb_vorbis.h"
 #include "audiohandlers/AudioBufferSPSC.hpp"
 #include "portaudio.h"
 

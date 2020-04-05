@@ -1,5 +1,5 @@
 #include "portaudio.h"
-#include "vorbis/stb_vorbis.h"
+#include "stb_vorbis.h"
 #include "audiohandlers/DFT.hpp"
 #include <cstdlib>
 #include <iostream>
