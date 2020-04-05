@@ -5,3 +5,14 @@
 - however, it appears to be relatively minor (at least for now)
 
 - so i am going to ignore it >:)
+
+# GLFW
+
+## Key callbacks
+
+The PollEvents function runs into the issue that if a user presses and releases a key in the time taken prior to polling events, the input will be ignored. GLFW suggests two solutions to this:
+
+- glfwSetInputMode(window, GLFW_STICKY_KEYS, GLFW_TRUE);
+- glfwSetKeyCallback(window, callback);
+
+Seemingly you would want to use the poll approach for keys which are held down, and the callback approach for keys which are just pressed.

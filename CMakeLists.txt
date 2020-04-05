@@ -120,12 +120,13 @@ endif()
 
 add_subdirectory(${deps_dir}/glfw)
 
-# target_compile_options(portaudio_test PRIVATE "-pthread")
-
 if (NOT ${pa_stub})
   target_link_libraries(vorbismgr stb_vorbis portaudio)
   target_link_libraries(portaudio_test DFT portaudio)
 endif()
+
+add_executable(cubedemo ${exp_dir}/cubedemo.cpp)
+target_link_libraries(cubedemo PRIVATE glad glfw)
 
 ### FINAL CONFIGS ###
 
