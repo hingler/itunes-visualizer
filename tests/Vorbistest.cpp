@@ -73,48 +73,47 @@ void ReadStream(float* check, ReadOnlyBuffer* buf) {
     offset = buf->Synchronize_Chunked() * 2;
     samples_read = buf->Peek_Chunked(2048, &output);
     // note: left on 0, right on 1
-    // for (int i = 0; i < samples_read; i += 64) {
+    for (int i = 0; i < samples_read; i += 64) {
       
-    //   if (check[offset + (2 * i)] != output[0][i]) {
-    //     std::cout << "bad match: frame " << (offset/2 + i) << "L" << std::endl;
-    //     std::cout << "on frame " << i << std::endl;
+      if (check[offset + (2 * i)] != output[0][i]) {
+        std::cout << "bad match: frame " << (offset/2 + i) << "L" << std::endl;
+        std::cout << "on frame " << i << std::endl;
 
-    //     for (int j = 0; j < 32; j++) {
-    //       if (output[0][i] == check[offset + (2 * i) + j]) {
-    //         std::cout << "l-desync" << std::endl;
-    //         std::cout << j << std::endl;
-    //       }
-    //       if (output[0][i] == check[offset + (2 * i) - j]) {
-    //         std::cout << "l-desync" << std::endl;
-    //         std::cout << j << std::endl;
-    //       }
-    //     }
+        for (int j = 0; j < 32; j++) {
+          if (output[0][i] == check[offset + (2 * i) + j - 16]) {
+            std::cout << "l-desync" << std::endl;
+            std::cout << j << std::endl;
+          }
+          if (output[1][i] == check[offset + (2 * i) - j - 16]) {
+            std::cout << "r-desync" << std::endl;
+            std::cout << j << std::endl;
+          }
+        }
 
-    //     std::cout << check[offset + (2 * i)] << " expected " << output[0][i] << "actual" << std::endl;
-    //     //ASSERT_NEAR(output[0][i], check[offset + (2 * i)], 0.001);
-    //     //break;
-    //   }
+        std::cout << check[offset + (2 * i)] << " expected " << output[0][i] << "actual" << std::endl;
+        ASSERT_NEAR(output[0][i], check[offset + (2 * i)], 0.001);
+        break;
+      }
 
-    //   if (check[offset + (2 * i) + 1] != output[1][i]) {
-    //     std::cout << "bad match: frame " << (offset/2 + i) << "R" << std::endl;
-    //     std::cout << "on frame " << i << std::endl;
+      if (check[offset + (2 * i) + 1] != output[1][i]) {
+        std::cout << "bad match: frame " << (offset/2 + i) << "R" << std::endl;
+        std::cout << "on frame " << i << std::endl;
         
-    //     for (int j = 0; j < 32; j++) {
-    //       if (output[0][i] == check[offset + (2 * i) + j]) {
-    //         std::cout << "r-desync" << std::endl;
-    //         std::cout << j << std::endl;
-    //       }
-    //       if (output[0][i] == check[offset + (2 * i) - j]) {
-    //         std::cout << "r-desync" << std::endl;
-    //         std::cout << j << std::endl;
-    //       }
-    //     }
+        for (int j = 0; j < 32; j++) {
+          if (output[0][i] == check[offset + (2 * i) + j - 16]) {
+            std::cout << "l-desync" << std::endl;
+            std::cout << j << std::endl;
+          }
+          if (output[1][i] == check[offset + (2 * i) - j]) {
+            std::cout << "r-desync" << std::endl;
+            std::cout << j << std::endl;
+          }
+        }
 
-    //     std::cout << check[offset + (2 * i) + 1] << " expected " << output[1][i] << "actual" << std::endl;
-    //     //ASSERT_NEAR(output[1][i], check[offset + (2 * i) + 1], 0.001);
-    //     //break;
-    //   }
-    // }
+        ASSERT_NEAR(output[1][i], check[offset + (2 * i) + 1], 0.001);
+        break;
+      }
+    }
     std::this_thread::sleep_for(std::chrono::milliseconds(15));
   } while (samples_read != 0);
   std::cout << "done\n\n\n" << std::endl;
@@ -128,8 +127,9 @@ TEST(VorbisManagerTests, ShawtyWannaFuck) {
   stb_vorbis_get_samples_float_interleaved(vorbis, 2, buffer, filelen * 2);
   stb_vorbis_close(vorbis);
   
-  // todo: create a second thread and verify file contents
+  Pa_Initialize();
   VorbisManager* mgr = VorbisManager::GetVorbisManager(14, testfile);
+  ASSERT_NE(mgr, nullptr);
   ReadOnlyBuffer* buf = mgr->CreateBufferInstance();
   ReadOnlyBuffer* buf_two = mgr->CreateBufferInstance();
   ReadOnlyBuffer* buf_three = mgr->CreateBufferInstance();
@@ -144,7 +144,11 @@ TEST(VorbisManagerTests, ShawtyWannaFuck) {
   std::thread checker2(ReadStream, buffer, buf_two);
   std::thread checker3(ReadStream, buffer, buf_three);
   std::thread checker4(DFTStream, buf_four);
-  std::this_thread::sleep_for(std::chrono::milliseconds(140000));
+  std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+
+  // an issue arises with verifying this after a call to ForceWrite -- each buffer is adjusted independently
+  // by some unknown amount, so we cannot determine where exactly in the file it is reading from.
+  // this is not an issue without verification, and it will not cause issues with PortAudio.
 
   std::cout << "stopping the write thread..." << std::endl;
   mgr->StopWriteThread();
