@@ -20,6 +20,8 @@ add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
 
+add_library(glad ${deps_dir}/glad/src/glad.c)
+target_include_directories(glad PUBLIC ${deps_dir}/glad/include)
 add_library(stb_vorbis ${deps_dir}/stb_vorbis/stb_vorbis.c)
 
 set(pa_stub OFF)
@@ -115,6 +117,8 @@ if(NOT ${pa_stub})
   target_include_directories(portaudio_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
                                             PRIVATE ${pa_incdir})
 endif()
+
+add_subdirectory(${deps_dir}/glfw)
 
 # target_compile_options(portaudio_test PRIVATE "-pthread")
 
