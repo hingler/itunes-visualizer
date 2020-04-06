@@ -16,3 +16,14 @@ The PollEvents function runs into the issue that if a user presses and releases 
 - glfwSetKeyCallback(window, callback);
 
 Seemingly you would want to use the poll approach for keys which are held down, and the callback approach for keys which are just pressed.
+
+Cool shit: https://www.glfw.org/documentation.html
+---
+
+# VAO
+
+Kronos wiki specifies that a VAO records everything about the vertex data which we intend to pass to our vert shader. This includes calls to glEnable(/Disable)VertexAttribArray and glVertexAttribPointer.
+Also keeps track of the EBO.
+
+This is only available in #version 300 core and above.
+

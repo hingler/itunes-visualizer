@@ -65,7 +65,7 @@ void WriteThread(BufferPair* buf, uint32_t contents[]) {
     buf->aux->Write(contents + offset, max_read);
     buf->mono->Write(contents + offset, max_read);
     offset += max_read;
-    // std::cout << "offset: " << offset << std::endl;
+    std::cout << "offset: " << offset << std::endl;
   }
   std::cout << "write thread complete" << std::endl;
 }
