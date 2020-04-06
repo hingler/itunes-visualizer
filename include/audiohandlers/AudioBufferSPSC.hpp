@@ -47,10 +47,7 @@ class AudioBufferSPSC {
    *  The number of bytes which could be read.
    */ 
   size_t Peek(uint32_t count, BUFFER_UNIT** output) {
-    // TODO: output param is inconsistent
-    //       might be ideal? depending on use cases but ich dont think so
     uint32_t len;
-    // must ensure that read head stays in place for duration of operation
     std::lock_guard<std::mutex> lock(read_lock_);
     if (reader_thread_.safesize < count) {
       // no guarantee that we have enough room to read -- check the atomic
@@ -58,14 +55,11 @@ class AudioBufferSPSC {
     }
 
     if (reader_thread_.safesize < count) {
-      // cannot read all bits
       len = reader_thread_.safesize;
     } else {
-      // can read all bits
       len = count;
     }
 
-    // nothing to do :)
     if (len == 0) {
       return 0;
     }
@@ -95,7 +89,6 @@ class AudioBufferSPSC {
    *    - The number of frames read.
    */ 
   size_t Peek_Chunked(uint32_t framecount, BUFFER_UNIT*** output) {
-    // assume that we are on a channel boundary
     uint32_t len;
     uint32_t count = framecount * channel_count_;
 
@@ -167,7 +160,6 @@ class AudioBufferSPSC {
    *  - a R/W pointer to the read data.
    */
   BUFFER_UNIT* Read(uint32_t count) {
-    // check safesize
     std::lock_guard<std::mutex> lock(read_lock_);
     if (reader_thread_.safesize < count) {
       UpdateReaderThread();
@@ -177,7 +169,6 @@ class AudioBufferSPSC {
       }
     }
 
-    // ample space
     uint32_t masked_read = Mask(reader_thread_.position);
     for (int i = 0; i < count; i++) {
       if (masked_read >= buffer_capacity_) {
@@ -189,7 +180,6 @@ class AudioBufferSPSC {
     reader_thread_.position = MaskTwo(reader_thread_.position + count);
     reader_thread_.safesize -= count;
 
-    // update read atomic
     shared_read_.store(reader_thread_.position, std::memory_order_release);
     read_marker_.fetch_add(count, std::memory_order_acq_rel);
 
@@ -222,7 +212,6 @@ class AudioBufferSPSC {
     reader_thread_.position = MaskTwo(reader_thread_.position + count);
     reader_thread_.safesize -= count;
 
-    // update read atomic
     shared_read_.store(reader_thread_.position, std::memory_order_release);
     read_marker_.fetch_add(count, std::memory_order_acq_rel);
 
@@ -277,8 +266,6 @@ class AudioBufferSPSC {
 
       // wipes the buffer if necessary
       int offset = Min(reader_thread_.safesize, count);
-      // return whether or not the buffer has been emptied
-
 
       reader_thread_.safesize -= offset;
       reader_thread_.position = MaskTwo(reader_thread_.position + offset);
@@ -358,13 +345,11 @@ class AudioBufferSPSC {
 
   void Force_Write(const BUFFER_UNIT* data, uint32_t count) {
     std::scoped_lock(read_lock_, write_lock_);
-    // lock and update writer thread
     UpdateWriterThread();
 
     if (writer_thread_.safesize < count) {
-      // still not enough space
+      // need to adjust the write thread
       int to_skip = count - writer_thread_.safesize;
-      // jump ahead a few
       reader_thread_.position = MaskTwo(reader_thread_.position + to_skip);
       reader_thread_.safesize -= to_skip;
       writer_thread_.safesize += to_skip;
@@ -394,13 +379,10 @@ class AudioBufferSPSC {
     reader_thread_.position = 0;
     writer_thread_.safesize = buffer_capacity_;
     reader_thread_.safesize = 0;
-    shared_read_.store(0);    // not worried about perofrmant memory order
+    shared_read_.store(0);
     shared_write_.store(0);
     read_marker_.store(0);    // wipe history as well
   }
-
-  // functions to add:
-    // ForceWrite, which will guarantee that data is written again
 
   uint32_t GetMaximumWriteSize() {
     std::lock_guard<std::mutex> lock(write_lock_);
@@ -415,7 +397,6 @@ class AudioBufferSPSC {
   }
 
   uint32_t Empty() const {
-    // eesh
     uint32_t write = shared_write_.load(std::memory_order_acquire);
     return (write == shared_read_.load(std::memory_order_acquire));
   }
@@ -438,11 +419,6 @@ class AudioBufferSPSC {
     delete[] channelzone_;
   }
 
-  // implement an assign op which populates the local buffer
-  // with contents of another
-  // (so that synchro call can repop if necessary)
-
-  // the best we have in this case is a skip operation
   void operator=(const AudioBufferSPSC& other) = delete;
   AudioBufferSPSC(const AudioBufferSPSC &) = delete;
 
@@ -452,8 +428,6 @@ class AudioBufferSPSC {
   const uint32_t buffer_capacity_;  // max capacity of the buffer
   BUFFER_UNIT* buffer_;   // pointer to internal buffer
 
-  // a safe readzone we can use to avoid memory allocation
-  // not limited by pow2 restriction!
   BUFFER_UNIT* readzone_;   // read space which can be read/modified by read thread
   BUFFER_UNIT** channelzone_; // space allocated for per-channel pointers
 
@@ -468,22 +442,6 @@ class AudioBufferSPSC {
   std::atomic_uint32_t shared_write_;   // shared ptr for syncing write val
   std::mutex write_lock_;
 
-
-  // todo: resolve issue of reading data while it may be written at the same time
-  // in the read thread: read to a second ring buffer which can be shared with a render thread.
-  // even better: if the goal is an fft printout, we can rely on an atomic int to track sample count,
-  // and read a set size from that ring buffer, only advancing when necessary
-
-
-  /**
-   * Mask a given value based on the length of the buffer.
-   * 
-   * Arguments:
-   *  - input, the value which we are masking.
-   * 
-   * Returns:
-   *  - The inputted argument, masked to the width of the buffer capacity.
-   */ 
   uint32_t Mask(uint32_t input) const {
     return input & (buffer_capacity_ - 1);
   }
@@ -511,13 +469,11 @@ class AudioBufferSPSC {
     return input & ((buffer_capacity_ << 1) - 1);
   }
 
-  // updates the reader thread's safe size
   void UpdateReaderThread() {
     uint32_t pos = shared_write_.load(std::memory_order_acquire);
     reader_thread_.safesize = MaskInclusive(pos - reader_thread_.position);
   }
 
-  // updates the writer thread's safe size
   void UpdateWriterThread() {
     uint32_t pos = shared_read_.load(std::memory_order_acquire);
     writer_thread_.safesize = buffer_capacity_ - MaskInclusive(writer_thread_.position - pos);
@@ -529,9 +485,7 @@ class AudioBufferSPSC {
       channelzone_[i] = readzone_ + (i * per_channel_capacity);
     }
   }
-  /**
-   * Shorthand for min
-   */ 
+
   inline uint32_t Min(uint32_t a, uint32_t b) {
     return (a < b ? a : b);
   }

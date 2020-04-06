@@ -13,10 +13,6 @@
 #include <shared_mutex>
 #include <thread>
 
-// TODO: Fix multiple definition problems
-
-// TODO: This should not be returned -- instead, the ReadOnlyBuffer should make use of it
-//       for calls to synchronize
 struct TimeInfo {
   TimeInfo();
   TimeInfo(int sample_rate);
@@ -85,8 +81,8 @@ class ReadOnlyBuffer {
  *  A pair of atomic flags used to facilitate communication between our thread and our vorbis manager. 
  */ 
 struct ThreadPacket {
-  std::atomic_flag thread_signal;     // flag raised by the thread to communicate to the manager.
-  std::atomic_flag vm_signal;         // flag raised by the manager to communicate to the thread.
+  std::atomic_flag thread_signal;     // flag raised by the thread
+  std::atomic_flag vm_signal;         // flag raised by the manager
 };
 
 /**

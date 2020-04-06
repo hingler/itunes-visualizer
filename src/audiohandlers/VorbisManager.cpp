@@ -81,7 +81,6 @@ VorbisManager* VorbisManager::GetVorbisManager(int twopow, std::string filename)
     return nullptr;
   }
 
-  // determines whether PA has been initialized.
   err = Pa_GetDeviceCount();
 
   if (err < 0) {
@@ -91,17 +90,13 @@ VorbisManager* VorbisManager::GetVorbisManager(int twopow, std::string filename)
 
   stb_vorbis* file = stb_vorbis_open_filename(filename.c_str(), &err, NULL);
   if (file == NULL) {
-    // error occurred
     return nullptr;
   }
 
-  // opened valid -- call constructor
   return new VorbisManager(twopow, file);
 }
 
 ReadOnlyBuffer* VorbisManager::CreateBufferInstance() {
-  // realization: why would we ever want a larger buffer
-  // the size of the critical buffer affects the number of terms in all others
   std::shared_ptr<FloatBuf> result(new FloatBuf(buffer_power_, channel_count_));
   std::lock_guard lock(buffer_list_lock_);
   buffer_list_.push_front(result);
@@ -129,39 +124,24 @@ void VorbisManager::StartWriteThread() {
     auto func = [](std::shared_ptr<FloatBuf> buf) {buf->Clear();};
     EraseOrCallback(func);
     write_thread_ = std::thread(&VorbisManager::WriteThreadFn, this);
-    // we have our ThreadPacket for keeping watch (which it will have access to via `this`)
     write_thread_.detach();
     // wait for the write thread to finish setting up
     while (packet.thread_signal.test_and_set());
-    // TimeInfo is now valid -- threads can read
-
     info.SetSampleRate(sample_rate_);
   }
 }
 
 void VorbisManager::StopWriteThread() {
-
-  // if it's false, do nothing -- we've already resolved the case
-  // if it's true: get ready to wind down
   if (packet.thread_signal.test_and_set()) {
-    // thread still open
     packet.vm_signal.clear();
-    // notify that we want it to close
     while (packet.thread_signal.test_and_set());
-    // wait for it to spin down
     run_thread_.store(false, std::memory_order_release);
   } else if (run_thread_.load(std::memory_order_acquire)) {
     // thread closed on its own
     run_thread_.store(false, std::memory_order_release);
   }
-  // signal is false, and thread is marked as closed. This means it cleaned up itself so there's
-  // nothing to do.
 }
 
-/**
- *  Returns whether or not the thread is running.
- *  True if so, false if not.
- */ 
 bool VorbisManager::IsThreadRunning() {
   return run_thread_.load(std::memory_order_acquire);
 }
@@ -178,7 +158,6 @@ VorbisManager::~VorbisManager() {
 }
 
 // PRIVATE FUNCTIONS
-// TODO: Write the private functions (thread func)
 
 VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : info(), buffer_power_(twopow + 1),
                                                              run_thread_(false) {
@@ -210,16 +189,7 @@ void VorbisManager::WriteThreadFn() {
   outParam.suggestedLatency = devinfo->defaultHighOutputLatency; // temporary :)
 
   PopulateBuffers(critical_buffer_->Capacity());
-  // offset timeinfo based on suggestedLatency?
 
-  // NOTE: data passed into stream may have to be volatile?
-  // probably everything passed in here should be --
-  // given that it can be called at interrupt level
-
-  // i think the bits on threads are bullshit but idk
-  // create a small struct which encompasses the crit buffer and the signal
-
-  // prepare CallbackPacket
   CallbackPacket* callback_packet = new CallbackPacket();
   callback_packet->buf = critical_buffer_;
   callback_packet->callback_signal.test_and_set();
@@ -238,14 +208,10 @@ void VorbisManager::WriteThreadFn() {
     // cleanup again
   }
 
-  // for testing
-
   for (;;) {
     if (!packet.vm_signal.test_and_set()) {
-      // kill signal from thread
       break;
     }
-    // continue unabated
     if (!PopulateBuffers(write_threshold)) {
       // stream is empty -- done reading
       break;
@@ -269,53 +235,40 @@ void VorbisManager::WriteThreadFn() {
 }
 
 void VorbisManager::EraseOrCallback(const std::function<void(std::shared_ptr<FloatBuf>)>& func) {
-  // ptr
   std::shared_ptr<AudioBufferSPSC<float>> ptr;
-  // lock the list
   std::lock_guard lock(buffer_list_lock_);
   auto itr = buffer_list_.begin();
   while (itr != buffer_list_.end()) {
-    // get shared from weak
     ptr = itr->lock();
     // see if it is in fact expired
     if (itr->expired()) {
       // delete it if so
       itr = buffer_list_.erase(itr);
     } else {
-      // perform callback otherwise
       func(ptr);
     }
     itr++;
   }
 }
 
-// todo: multithread erase-or-callback
-// create a thread+queue struct which accepts lambdas and runs them to completion
-// send the request to all threads which are not replaced, one by one
-// waiting for their completion is a bit finicky
-// not right now though
 bool VorbisManager::PopulateBuffers(int write_size) {
   if (write_size > critical_buffer_->Capacity()) {
     // something is wrong!
     return false;
     // what the fuck are you doing broh!
   }
-  
-  // read from vorbis
+
   int readsize = stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, read_buffer_, write_size);
   // spin until space is available
   while (critical_buffer_->GetMaximumWriteSize() < write_size);
 
   int writesize = (readsize * channel_count_);
-  // write to crit buffer
   auto callback = [this, writesize](std::shared_ptr<FloatBuf> buf) {
     FillBufferListCallback(buf, read_buffer_, writesize);
   };
 
   EraseOrCallback(callback);
   critical_buffer_->Write(read_buffer_, writesize);
-  // call our force callback
-  // return false if we're at the end (this should be OK, problems may appear :/)
 
 
 
@@ -342,24 +295,12 @@ int VorbisManager::PaCallback(  const void* input,
   float* outputData = reinterpret_cast<float*>(output);
   FloatBuf* buf = packet->buf;
   int samplecount = frameCount * (buf->GetChannelCount());
-  // try to read
-  // if we need to do postprocessing this can be overwritten
-  // TODO: could probably get rid of the default read as
-  //       this style is the only one we really need but oh well :/
-
-  // also: can return paComplete 
-
-
-  // lol wrote this because i didnt even *think* it would
-  // be necessary to read straight to the buffer
   if (!buf->ReadToBuffer(samplecount, outputData)) {
-    // if it fails, check if the buffer is empty
     if (buf->Empty()) {
       // send zeroes to the buffer
       for (int i = 0; i < samplecount; i++) {
         outputData[i] = 0.0f;
       }
-      // call on the write thread to clean up
       packet->callback_signal.clear();
     } else {
       // there's at least some data that we can read
@@ -369,9 +310,8 @@ int VorbisManager::PaCallback(  const void* input,
       int offset;
       for (offset = 0; offset < samples_read; offset++) {
         outputData[offset] = remainingData[offset];
-        // extract everything
       }
-      // read zeroes into the rest
+
       for (; offset < samplecount; offset++) {
         outputData[offset] = 0.0f;
       }

@@ -8,8 +8,7 @@
 
 namespace dft {
 bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32_t len) {
-  // array must be power of 2
-  if (len & (len - 1) || len < 2) {   // len is less than 2
+  if (len & (len - 1) || len < 2) {
     return false;
   }
 
@@ -18,12 +17,10 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
 
   ReverseBitsArray(input, real_int, len);
 
-  // let's leave the results in a higher resolution form if possible
   double sin_table[len / 2];
   double cos_table[len / 2];
   // note: cos(theta) = sin(theta + pi/2)
 
-  // populate sine table
   for (uint32_t i = 0; i < (len / 2); i++) {
     // thanks up to https://github.com/dntj/jsfft
     // for helping me realize i had my trig ratios all janked
@@ -32,27 +29,20 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
   }
 
   for (uint32_t i = 0; i < len; i++) {
-    imag_int[i] = 0;   // 0-initialize the imaginary output for calcs
+    imag_int[i] = 0;
   }
 
-  // some value tracking
   uint32_t runs;
 
-  // even/odd value indices for fft
   uint32_t even_ind;
   uint32_t odd_ind;
 
-  // stores odd complex in variables for reuse
   double odd_imag;
   double odd_real;
 
-  // stores indexed sin/cos ratios
   double sin_res;
   double cos_res;
 
-  // after reversing bits, e/o entries will be next to each other
-
-  // DFT on size (size * 2) input
   for (uint32_t size = 1; size < len; size <<= 1) {
     uint32_t runs = (len / size) / 2;
     // # of separate DFT ops
@@ -61,7 +51,6 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
       for (uint32_t k = 0; k < size; k++) {
         even_ind = i * size * 2 + k;
         odd_ind = even_ind + size;
-        // trig ratio's
 
         sin_res = sin_table[(k * len) / (2 * size)];
         cos_res = cos_table[(k * len) / (2 * size)];
@@ -70,7 +59,6 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
         odd_imag = sin_res * real_int[odd_ind] + cos_res * imag_int[odd_ind];
         odd_real = cos_res * real_int[odd_ind] - sin_res * imag_int[odd_ind];
 
-        // k + N/2
         imag_int[even_ind + size] = (imag_int[even_ind] - odd_imag);
         real_int[even_ind + size] = (real_int[even_ind] - odd_real);
         imag_int[even_ind] = (imag_int[even_ind] + odd_imag);
@@ -79,10 +67,9 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
     }
   }
 
-  // copy intermediate results to heap allocated memory and return
   *real_output = new float[len];
   *imag_output = new float[len];
-  // currently preserved in entirety but we could just drop the latter half
+
   for (uint32_t i = 0; i < len; i++) {
     (*real_output)[i] = real_int[i];
     (*imag_output)[i] = imag_int[i];
