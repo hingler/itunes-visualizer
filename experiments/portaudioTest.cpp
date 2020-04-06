@@ -1,5 +1,5 @@
 #include "portaudio.h"
-#include "vorbis/stb_vorbis.h"
+#include "stb_vorbis.h"
 #include "audiohandlers/DFT.hpp"
 #include <cstdlib>
 #include <iostream>
@@ -61,19 +61,20 @@ int main(int argc, char** argv) {
     std::cout << deviceInfo->defaultSampleRate << "Hz" << std::endl;
   }
 
-  const int DEV_NUM = 6;
+  const int DEV_NUM = 1;
 
   deviceInfo = Pa_GetDeviceInfo(DEV_NUM); // try it
 
   PaStreamParameters outParams;
   outParams.channelCount = deviceInfo->maxOutputChannels;
+  std::cout << outParams.channelCount << std::endl;
 
   // note: this is specific to my machine and probably wont work
   // we are just messing arond :)
   outParams.device = DEV_NUM; // well thats what it is
   outParams.hostApiSpecificStreamInfo = NULL;
   outParams.sampleFormat = paFloat32;
-  outParams.suggestedLatency = deviceInfo->defaultLowOutputLatency;
+  outParams.suggestedLatency = deviceInfo->defaultHighOutputLatency;
 
   std::cout << "devices available: " << numDevices << std::endl;
 
@@ -92,6 +93,7 @@ int main(int argc, char** argv) {
   err = Pa_OpenStream(&stream, NULL, &outParams, info.sample_rate, 1024, paNoFlag, TestCallback, &data);
   if (!err == paNoError) {
     PrintErrInfo(err);
+    std::cout << "here" << std::endl;
     return EXIT_FAILURE;
   }
 
