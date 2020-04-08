@@ -19,6 +19,7 @@ set(deps_dir ${CMAKE_CURRENT_SOURCE_DIR}/deps)
 add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
+add_library(shader src/gl/Shader.cpp)
 
 add_library(glad ${deps_dir}/glad/src/glad.c)
 target_include_directories(glad PUBLIC ${deps_dir}/glad/include)
@@ -46,6 +47,9 @@ target_include_directories(vorbismgr PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
                                      PRIVATE ${pa_incdir})
 
 target_include_directories(stb_vorbis PUBLIC ${deps_dir}/stb_vorbis/include)
+
+target_include_directories(shader PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(shader PRIVATE glad)
 
 set_target_properties(vorbismgr 
                       PROPERTIES LINKER_LANGUAGE CXX)
@@ -126,7 +130,8 @@ if (NOT ${pa_stub})
 endif()
 
 add_executable(cubedemo ${exp_dir}/cubedemo.cpp)
-target_link_libraries(cubedemo PRIVATE glad glfw)
+target_link_libraries(cubedemo PRIVATE glad glfw shader)
+target_include_directories(cubedemo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 ### FINAL CONFIGS ###
 

@@ -35,7 +35,7 @@ const static int contents_length = 705600;
 // it already fucks up in valgrind
 // in normal performance this limit shouldn't pose a problem,
 // it just has to do with the current method of verification (others would do better)
-const static int sample_rate = 576000 * 2;
+const static int sample_rate = 144000;
 
 typedef std::chrono::time_point<std::chrono::high_resolution_clock> hrctp;
 typedef std::chrono::duration<double, std::ratio<1L, 1L>> SecDur;

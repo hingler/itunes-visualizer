@@ -2,42 +2,40 @@
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 
+#include "gl/Shader.hpp"
+
 #include <iostream>
 
 const static float vertices[] = {
-    -0.5f, -0.5f, 0.0f,
-     0.5f, -0.5f, 0.0f,
-     0.5f,  0.5f, 0.0f,
-    -0.5f,  0.5f, 0.0f
-};
-
-const static float vertices_two[] = {
-    -0.4f, -0.5f, 0.0f,
-     0.5f, -0.6f, 0.0f,
-     0.2f,  0.5f, 0.0f,
-    -0.5f,  0.8f, 0.0f
+    -0.5f, -0.5f, 0.0f, 1.0f, 0.0f, 0.0f,
+     0.5f, -0.5f, 0.0f, 0.0f, 1.0f, 0.0f,
+     0.5f,  0.5f, 0.0f, 0.0f, 0.0f, 0.0f,
+    -0.5f,  0.5f, 0.0f, 0.0f, 0.0f, 1.0f
 };
 
 unsigned int indices[] = {
   0, 1, 3
 };
 
-unsigned int indices_two[] = {
-  0, 3, 2
-};
-
 const static char* vShader = 
   "#version 410 core\n"
+  "precision mediump float;\n"
   "in vec3 aPos;\n"
+  "in vec3 aColor;\n"
+  "uniform float time;\n"
+  "out vec4 vertexColor;\n"
   "void main() {\n"
-  " gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);\n"
+  " vertexColor = vec4(aColor.rgb, 1.0);\n"
+  " gl_Position = vec4(aPos.xyz, 1.0);\n"
   "}\0";
 
 const static char* fShader =
   "#version 410 core\n"
   "out vec4 FragColor;\n"
+  "in vec4 vertexColor;\n"
   "void main() {\n"
-  " FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);\n"
+  " FragColor.rgb = pow(vertexColor.rgb, vec3(1.0 / 2.2));\n" // gamma correction!
+  " FragColor.a = 1.0;\n"
   "}\0";
 
 // called on a window size change
@@ -49,6 +47,10 @@ int main(int argc, char** argv) {
   if (!glfwInit()) {
     return 1;
   }
+
+  GLuint proggers;
+
+  Shader::CreateProgram("../experiments/cubedemo.cpp", "../experiments/cubedemo.cpp", &proggers);
 
   // glad loader created for OGL 4.1
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -77,6 +79,10 @@ int main(int argc, char** argv) {
     glfwTerminate();
     return 1;
   }
+  
+  int attribs;
+  glGetIntegerv(GL_MAX_VERTEX_ATTRIBS, &attribs);
+  std::cout << attribs << std::endl;
 
   // best way to organize:
 
@@ -178,30 +184,22 @@ int main(int argc, char** argv) {
 
 
   // specify how our vertices are laid out
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  // map index 0 to the vertex positions in the frag shader
+  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+  // map index 0 to the vertex positions in the vert shader
+  // are these attrib locations bound to the program?
+  glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)(3 * sizeof(float)));
+  // i think so
   glBindAttribLocation(prog, 0, "aPos");
+  glBindAttribLocation(prog, 1, "aColor");
+
   // enable the attrib
   glEnableVertexAttribArray(0);
-  glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+  glEnableVertexAttribArray(1);
   glUseProgram(prog);
 
-  unsigned int vao_two;
-  glGenVertexArrays(1, &vao_two);
-  glBindVertexArray(vao_two);
-
-  unsigned int two_buf;
-  glGenBuffers(1, &two_buf);
-  glBindBuffer(GL_ARRAY_BUFFER, two_buf);
-  glBufferData(GL_ARRAY_BUFFER, sizeof(vertices_two), vertices_two, GL_STATIC_DRAW);
-
-  unsigned int ebo_two;
-  glGenBuffers(1, &ebo_two);
-  glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo_two);
-  glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices_two), indices_two, GL_STATIC_DRAW);
-
-  glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
-  glEnableVertexAttribArray(0);
+  float time = 0.0f;
+  int timeloc = glGetUniformLocation(prog, "time");
+  // wrapping this would be great actually now that i think about it
 
   // draw wireframe instead of filling
   // glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
@@ -213,14 +211,15 @@ int main(int argc, char** argv) {
     glUseProgram(prog);
     glBindVertexArray(vao);
     // glDrawArrays(GL_TRIANGLES, 0, 3);
-    glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
-
-    glBindVertexArray(vao_two);
+    glUniform1f(timeloc, time);
     glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_INT, 0);
 
     glfwSwapBuffers(window);
     // checks for input and calls callbacks assc'd with them
+    // writing a class which can represent the state of a shader
+    // and give access to uniforms, attributes, etc. etc. would be neat!
     glfwPollEvents();
+    time += 0.01f;
   }
 
   // here: the window has been closed
