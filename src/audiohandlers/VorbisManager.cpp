@@ -20,7 +20,7 @@ int TimeInfo::GetCurrentSample() const {
 
   std::chrono::duration<double, std::milli> offset =
     std::chrono::high_resolution_clock::now() - playback_epoch_;
-  return (sample_rate_ * offset.count()) / 1000;
+  return static_cast<int>((sample_rate_ * offset.count()) / 1000);
 }
 
 bool TimeInfo::IsThreadRunning() const {
@@ -169,24 +169,15 @@ VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : info(), buffer_powe
   read_buffer_ = new float[critical_buffer_->Capacity()];
 }
 
+// todo: make bool :/
 void VorbisManager::WriteThreadFn() {
   uint32_t write_threshold = critical_buffer_->Capacity() / 2;
-  int samples_read;
 
   PaError err;
 
   // TODO: Should this in fact be volatile???
 
   PaStream* stream;
-  const int devnum = 1;   // again i think
-  const PaDeviceInfo* devinfo = Pa_GetDeviceInfo(devnum);
-  PaStreamParameters outParam;
-
-  outParam.channelCount = channel_count_;
-  outParam.device = devnum;
-  outParam.hostApiSpecificStreamInfo = NULL;
-  outParam.sampleFormat = paFloat32;
-  outParam.suggestedLatency = devinfo->defaultHighOutputLatency; // temporary :)
   
   // feel like this could be called within StartWriteThread but either/or i guess
   PopulateBuffers(critical_buffer_->Capacity());
@@ -195,12 +186,12 @@ void VorbisManager::WriteThreadFn() {
   callback_packet->buf = critical_buffer_;
   callback_packet->callback_signal.test_and_set();
 
-  err = Pa_OpenStream(&stream,
-                      NULL,
-                      &outParam,
+  err = Pa_OpenDefaultStream(&stream,
+                      0,
+                      2,
+                      paFloat32,
                       sample_rate_,
                       paFramesPerBufferUnspecified,
-                      paNoFlag,
                       VorbisManager::PaCallback,
                       reinterpret_cast<void*>(callback_packet));
   Pa_StartStream(stream);
@@ -307,7 +298,7 @@ int VorbisManager::PaCallback(  const void* input,
       // there's at least some data that we can read
       // read what we can and pad the rest with zeroes
       float* remainingData;
-      int samples_read = buf->Peek(samplecount, &remainingData);
+      size_t samples_read = buf->Peek(samplecount, &remainingData);
       int offset;
       for (offset = 0; offset < samples_read; offset++) {
         outputData[offset] = remainingData[offset];

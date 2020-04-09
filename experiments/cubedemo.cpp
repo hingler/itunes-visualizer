@@ -77,8 +77,6 @@ int main(int argc, char** argv) {
 
   // while the window is open
 
-  char infolog[512];
-
   unsigned int ebo;
   glGenBuffers(1, &ebo);
 

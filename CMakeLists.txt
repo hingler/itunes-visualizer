@@ -139,6 +139,10 @@ add_executable(cubedemo_two ${exp_dir}/cubedemo2.cpp)
 target_link_libraries(cubedemo_two PRIVATE glad glfw shader stb_image)
 target_include_directories(cubedemo_two PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
+## COPY RESOURCES ##
+
+file(COPY ${exp_dir}/resources DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
+
 ### FINAL CONFIGS ###
 
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})

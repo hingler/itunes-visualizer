@@ -179,7 +179,7 @@ void ReaderThread(int16_t* verify_contents, AudioBufferSPSC<int16_t>* q) {
 
 TEST_F(BufferTests, MultiThreadTest) {
 
-  int16_t contents[thread_read_len];
+  int16_t* contents = new int16_t[thread_read_len];
   for (int i = 0; i < thread_read_len; i++) {
     contents[i] = (rand() % 65536) - 32768;
   }
@@ -189,6 +189,8 @@ TEST_F(BufferTests, MultiThreadTest) {
 
   writer.join();
   reader.join();
+
+  delete[] contents;
 }
 
 // TODO: Write a test using the synchronize, getitemsread, etc. calls
@@ -265,7 +267,7 @@ void ReadThread(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp time,
     while (buf->Size() == 0);
     // once it updates, sync
     buf->Synchronize(seek_sample);
-    int read_size;
+    size_t read_size;
     // peek at the data that's there
     do {
       read_size = buf->Peek(1024, &data);
@@ -288,7 +290,7 @@ void ReadThread(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp time,
 // idea for implementation: populate the critical buffer to avoid
 // discrepencies between buffers
 TEST(ThreadBufferTest, MultiThreadVoyage) {
-  uint32_t contents[contents_length];
+  uint32_t* contents = new uint32_t[contents_length];
   for (int i = 0; i < contents_length; i++) {
     contents[i] = i;
   }
@@ -314,4 +316,6 @@ TEST(ThreadBufferTest, MultiThreadVoyage) {
 
   delete buf.crit;
   delete buf.aux;
+
+  delete[] contents;
 }
