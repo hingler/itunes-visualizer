@@ -77,7 +77,7 @@ void ReadThread_STEREO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrct
   while (seek_sample < contents_length) {
     double dur = SecDur(std::chrono::high_resolution_clock::now() - time).count();
     // "peek" at the next set of values (length returned)
-    seek_sample = (sample_rate * dur);
+    seek_sample = static_cast<int>(sample_rate * dur);
     // check values against sample count
     // synchro call has no means of reporting whether the operation was successful!
     if (seek_sample >= contents_length) {
@@ -90,7 +90,7 @@ void ReadThread_STEREO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrct
     while (buf->Size() == 0);
     // once it updates, sync
     buf->Synchronize_Chunked(seek_sample);
-    int read_size;
+    size_t read_size;
 
     do {
       read_size = buf->Peek_Chunked(1024, &data);
@@ -127,7 +127,7 @@ void ReadThread_MONO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp 
     // seconds
     double dur = SecDur(std::chrono::high_resolution_clock::now() - time).count();
     // "peek" at the next set of values (length returned)
-    seek_sample = (sample_rate * 2 * dur);
+    seek_sample = static_cast<int>(sample_rate * 2 * dur);
     // check values against sample count
     // synchro call has no means of reporting whether the operation was successful!
     if (seek_sample >= contents_length * 2) {
@@ -140,13 +140,13 @@ void ReadThread_MONO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp 
     while (buf->Size() == 0);
     // once it updates, sync
     buf->Synchronize(seek_sample);
-    int read_size;
+    size_t read_size;
     // peek at the data that's there
     do {
       read_size = buf->Peek(1024, &data);
       // end of buffer: no discerning factor
     } while (read_size == 0);
-    for (int i = 0; i < read_size; i++) {
+    for (size_t i = 0; i < read_size; i++) {
       ASSERT_EQ(contents[i + seek_sample], data[i]);
     }
 

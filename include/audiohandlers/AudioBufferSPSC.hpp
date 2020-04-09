@@ -65,7 +65,7 @@ class AudioBufferSPSC {
     }
     
     uint32_t masked_read = Mask(reader_thread_.position);
-    for (int i = 0; i < len; i++) {
+    for (uint32_t i = 0; i < len; i++) {
       if (masked_read >= buffer_capacity_) {
         masked_read -= buffer_capacity_;
       }
@@ -107,8 +107,8 @@ class AudioBufferSPSC {
 
     uint32_t masked_read = Mask(reader_thread_.position);
 
-    for (int i = 0; i < len; i++) {
-      for (int j = 0; j < channel_count_; j++) {
+    for (uint32_t i = 0; i < len; i++) {
+      for (uint32_t j = 0; j < channel_count_; j++) {
         if (masked_read >= buffer_capacity_) {
           masked_read -= buffer_capacity_;
         }
@@ -170,7 +170,7 @@ class AudioBufferSPSC {
     }
 
     uint32_t masked_read = Mask(reader_thread_.position);
-    for (int i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < count; i++) {
       if (masked_read >= buffer_capacity_) {
         masked_read -= buffer_capacity_;
       }
@@ -219,7 +219,7 @@ class AudioBufferSPSC {
   }
 
   BUFFER_UNIT** Read_Chunked(uint32_t framecount) {
-    int count = framecount * channel_count_;
+    uint32_t count = framecount * channel_count_;
     std::lock_guard<std::mutex> lock(read_lock_);
     if (reader_thread_.safesize < count) {
       UpdateReaderThread();
@@ -232,8 +232,8 @@ class AudioBufferSPSC {
     RefreshChannelZone();
 
     uint32_t masked_read = Mask(reader_thread_.position);
-    for (int i = 0; i < framecount; i++) {
-      for (int j = 0; j < channel_count_; j++) {
+    for (uint32_t i = 0; i < framecount; i++) {
+      for (uint32_t j = 0; j < channel_count_; j++) {
         if (masked_read >= buffer_capacity_) {
           masked_read -= buffer_capacity_;
         }
@@ -258,7 +258,7 @@ class AudioBufferSPSC {
   void Synchronize(uint32_t sample_num) {
     std::lock_guard<std::mutex> lock(read_lock_);
     // take into account cases where the sample point is behind current
-    int count = sample_num - read_marker_.load(std::memory_order_acquire);
+    uint32_t count = sample_num - read_marker_.load(std::memory_order_acquire);
     // ensure that we have enough space to leap
     if (count > 0) {
       if (count > reader_thread_.safesize) {
@@ -299,7 +299,7 @@ class AudioBufferSPSC {
     }
 
     uint32_t masked_write = Mask(writer_thread_.position);
-    for (int i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < count; i++) {
       if (masked_write >= buffer_capacity_) {
         masked_write -= buffer_capacity_;
       }
@@ -345,7 +345,7 @@ class AudioBufferSPSC {
   }
 
   void Force_Write(const BUFFER_UNIT* data, uint32_t count) {
-    std::scoped_lock(read_lock_, write_lock_);
+    std::scoped_lock lock(read_lock_, write_lock_);
     UpdateWriterThread();
 
     if (writer_thread_.safesize < count) {
@@ -358,7 +358,7 @@ class AudioBufferSPSC {
     }
 
     uint32_t masked_write = Mask(writer_thread_.position);
-    for (int i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < count; i++) {
       if (masked_write >= buffer_capacity_) {
         masked_write -= buffer_capacity_;
       }
@@ -482,7 +482,7 @@ class AudioBufferSPSC {
   
   void RefreshChannelZone() {
     int per_channel_capacity = (buffer_capacity_ / channel_count_);
-    for (int i = 0; i < channel_count_; i++) {
+    for (size_t i = 0; i < channel_count_; i++) {
       channelzone_[i] = readzone_ + (i * per_channel_capacity);
     }
   }

@@ -165,7 +165,7 @@ class VorbisManager {
    *  Returns whether or not there is more content in the vorbis stream to read.
    *  
    */ 
-  bool PopulateBuffers(int write_size);
+  bool PopulateBuffers(unsigned int write_size);
 
   // handles cases where the buffer is full when we try to write more shit
   static void FillBufferListCallback(std::shared_ptr<AudioBufferSPSC<float>> buf, float* input, int write_size);

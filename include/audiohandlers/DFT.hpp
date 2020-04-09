@@ -19,6 +19,8 @@
 
 #include <cinttypes>
 
+#include <vector>
+
 namespace dft {
 
 /**
@@ -54,7 +56,7 @@ float* GetAmplitudeArray(float* real, float* imag, uint32_t len);
 
 // HELPER FUNCTIONS BELOW -- oops
 
-void ReverseBitsArray(float* src, float* dst, uint32_t len);
+void ReverseBitsArray(float* src, std::vector<float>& dst, uint32_t len);
 
 uint32_t ReverseBits(uint32_t input, uint8_t bit_width);
 

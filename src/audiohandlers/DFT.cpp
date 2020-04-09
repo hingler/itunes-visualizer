@@ -1,10 +1,11 @@
+#define _USE_MATH_DEFINES
 #include "audiohandlers/DFT.hpp"
-
 
 #include <cinttypes>
 #include <cmath>
 
-#include <iostream>
+#include <array>
+#include <vector>
 
 namespace dft {
 bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32_t len) {
@@ -12,27 +13,25 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
     return false;
   }
 
-  float real_int[len];
-  float imag_int[len];
+  std::vector<float> real_int(len);
+  std::vector<float> imag_int(len);
 
   ReverseBitsArray(input, real_int, len);
 
-  double sin_table[len / 2];
-  double cos_table[len / 2];
+  std::vector<double> sin_table(len / 2);
+  std::vector<double> cos_table(len / 2);
   // note: cos(theta) = sin(theta + pi/2)
 
   for (uint32_t i = 0; i < (len / 2); i++) {
     // thanks up to https://github.com/dntj/jsfft
     // for helping me realize i had my trig ratios all janked
-    sin_table[i] = sin((-2 * M_PI * i) / len);
-    cos_table[i] = cos((-2 * M_PI * i) / len);
+    sin_table.push_back(sin((-2 * M_PI * i) / len));
+    cos_table.push_back(cos((-2 * M_PI * i) / len));
   }
 
   for (uint32_t i = 0; i < len; i++) {
     imag_int[i] = 0;
   }
-
-  uint32_t runs;
 
   uint32_t even_ind;
   uint32_t odd_ind;
@@ -59,10 +58,10 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
         odd_imag = sin_res * real_int[odd_ind] + cos_res * imag_int[odd_ind];
         odd_real = cos_res * real_int[odd_ind] - sin_res * imag_int[odd_ind];
 
-        imag_int[even_ind + size] = (imag_int[even_ind] - odd_imag);
-        real_int[even_ind + size] = (real_int[even_ind] - odd_real);
-        imag_int[even_ind] = (imag_int[even_ind] + odd_imag);
-        real_int[even_ind] = (real_int[even_ind] + odd_real);
+        imag_int[size + even_ind] = static_cast<float>(imag_int[even_ind] - odd_imag);
+        real_int[size + even_ind] = static_cast<float>(real_int[even_ind] - odd_real);
+        imag_int[even_ind] = static_cast<float>(imag_int[even_ind] + odd_imag);
+        real_int[even_ind] = static_cast<float>(real_int[even_ind] + odd_real);
       }
     }
   }
@@ -89,7 +88,7 @@ float* GetAmplitudeArray(float* real, float* imag, uint32_t len) {
   return result;
 }
 
-void ReverseBitsArray(float* src, float* dst, uint32_t len) {
+void ReverseBitsArray(float* src, std::vector<float>& dst, uint32_t len) {
   uint8_t bit_width = 0;
 
   uint32_t len_copy = len - 1;
