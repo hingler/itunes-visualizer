@@ -3,7 +3,6 @@
 
 #include <cinttypes>
 #include <cmath>
-
 #include <array>
 #include <vector>
 
@@ -18,15 +17,15 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
 
   ReverseBitsArray(input, real_int, len);
 
-  std::vector<double> sin_table(len / 2);
-  std::vector<double> cos_table(len / 2);
+  std::vector<double> sin_table(len / 2, 0);
+  std::vector<double> cos_table(len / 2, 0);
   // note: cos(theta) = sin(theta + pi/2)
 
   for (uint32_t i = 0; i < (len / 2); i++) {
     // thanks up to https://github.com/dntj/jsfft
     // for helping me realize i had my trig ratios all janked
-    sin_table.push_back(sin((-2 * M_PI * i) / len));
-    cos_table.push_back(cos((-2 * M_PI * i) / len));
+    sin_table[i] = (sin((-2.0 * M_PI * i) / len));
+    cos_table[i] = (cos((-2.0 * M_PI * i) / len));
   }
 
   for (uint32_t i = 0; i < len; i++) {
@@ -58,10 +57,10 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
         odd_imag = sin_res * real_int[odd_ind] + cos_res * imag_int[odd_ind];
         odd_real = cos_res * real_int[odd_ind] - sin_res * imag_int[odd_ind];
 
-        imag_int[size + even_ind] = static_cast<float>(imag_int[even_ind] - odd_imag);
-        real_int[size + even_ind] = static_cast<float>(real_int[even_ind] - odd_real);
-        imag_int[even_ind] = static_cast<float>(imag_int[even_ind] + odd_imag);
-        real_int[even_ind] = static_cast<float>(real_int[even_ind] + odd_real);
+        imag_int[size + even_ind] = (imag_int[even_ind] - odd_imag);
+        real_int[size + even_ind] = (real_int[even_ind] - odd_real);
+        imag_int[even_ind] = (imag_int[even_ind] + odd_imag);
+        real_int[even_ind] = (real_int[even_ind] + odd_real);
       }
     }
   }
