@@ -16,10 +16,14 @@ set(deps_dir ${CMAKE_CURRENT_SOURCE_DIR}/deps)
 # sidenote: can include static libs without `add_library`
 # just add it thats all you do
 
+add_subdirectory(${deps_dir}/glfw)
+
 add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
 add_library(shader src/gl/GL.cpp)
+
+target_link_libraries(shader PRIVATE glfw glad)
 
 add_library(glad ${deps_dir}/glad/src/glad.c)
 target_include_directories(glad PUBLIC ${deps_dir}/glad/include)
@@ -120,8 +124,6 @@ endforeach(TESTFILE)
 if(NOT ${pa_stub})
   add_subdirectory(${deps_dir}/portaudio)
 endif()
-
-add_subdirectory(${deps_dir}/glfw)
 
 if (NOT ${pa_stub})
   target_link_libraries(vorbismgr stb_vorbis portaudio)
