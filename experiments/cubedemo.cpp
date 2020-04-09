@@ -2,7 +2,7 @@
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 
-#include "gl/Shader.hpp"
+#include "gl/GL.hpp"
 
 #include <iostream>
 
@@ -17,27 +17,6 @@ unsigned int indices[] = {
   0, 1, 3
 };
 
-const static char* vShader = 
-  "#version 410 core\n"
-  "precision mediump float;\n"
-  "in vec3 aPos;\n"
-  "in vec3 aColor;\n"
-  "uniform float time;\n"
-  "out vec4 vertexColor;\n"
-  "void main() {\n"
-  " vertexColor = vec4(aColor.rgb, 1.0);\n"
-  " gl_Position = vec4(aPos.xyz, 1.0);\n"
-  "}\0";
-
-const static char* fShader =
-  "#version 410 core\n"
-  "out vec4 FragColor;\n"
-  "in vec4 vertexColor;\n"
-  "void main() {\n"
-  " FragColor.rgb = pow(vertexColor.rgb, vec3(1.0 / 2.2));\n" // gamma correction!
-  " FragColor.a = 1.0;\n"
-  "}\0";
-
 // called on a window size change
 void SizeChangeCallback(GLFWwindow* window, int width, int height);
 
@@ -47,10 +26,6 @@ int main(int argc, char** argv) {
   if (!glfwInit()) {
     return 1;
   }
-
-  GLuint proggers;
-
-  Shader::CreateProgram("../experiments/cubedemo.cpp", "../experiments/cubedemo.cpp", &proggers);
 
   // glad loader created for OGL 4.1
   glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
@@ -130,58 +105,14 @@ int main(int argc, char** argv) {
   // stick the data contained in `vertices` into the buffer
   // currently designated as `GL_ARRAY_BUFFER`.
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+  GLuint vertShader = glCreateShader(GL_VERTEX_SHADER);
 
   // create shader
-  unsigned int prog = glCreateProgram();
-
-  GLuint vertShader = glCreateShader(GL_VERTEX_SHADER);
-  // create shader entity and link the script
-  glShaderSource(vertShader, 1, &vShader, NULL);
-  // compile (duh)
-  glCompileShader(vertShader);
-
-  GLint success;
-
-  glGetShaderiv(vertShader, GL_COMPILE_STATUS, &success);
-  if (!success) {
-    glGetShaderInfoLog(vertShader, 512, NULL, infolog);
-    std::cout << infolog << std::endl;
-    glfwTerminate();
+  GLuint prog;
+  if (!GL::CreateProgram("../experiments/samplevert.vert.glsl", "../experiments/samplefrag.frag.glsl", &prog)) {
+    std::cout << "failed to open file" << std::endl;
     return EXIT_FAILURE;
   }
-
-  GLuint fragShader = glCreateShader(GL_FRAGMENT_SHADER);
-  glShaderSource(fragShader, 1, &fShader, NULL);
-  glCompileShader(fragShader);
-
-  glGetShaderiv(fragShader, GL_COMPILE_STATUS, &success);
-  if (!success) {
-    glGetShaderInfoLog(fragShader, 512, NULL, infolog);
-    std::cout << infolog << std::endl;
-    glfwTerminate();
-    return EXIT_FAILURE;
-  }
-
-  // attach to the program
-  glAttachShader(prog, vertShader);
-  glAttachShader(prog, fragShader);
-  // link (thing gcc)
-  glLinkProgram(prog);
-
-  glGetProgramiv(prog, GL_LINK_STATUS, &success);
-  if (!success) {
-    glGetProgramInfoLog(prog, 512, NULL, infolog);
-    std::cout << infolog << std::endl;
-    glfwTerminate();
-    return EXIT_FAILURE;
-  }
-
-  // put these in a function -- this sucks!
-  // lots of semantically meaningful variables
-  // which end up getting tossed at the end of the ops
-  glDeleteShader(vertShader);
-  glDeleteShader(fragShader);
-
 
   // specify how our vertices are laid out
   glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
