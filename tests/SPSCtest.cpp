@@ -94,7 +94,7 @@ TEST_F(BufferTests, BufferLoopRead) {
 }
 
 TEST_F(BufferTests, RandomReadWrite) {
-  int16_t buffer_sim[size];
+  int16_t* buffer_sim = new int16_t[size];
   int16_t buffer_size = 0;
 
   int16_t buffer_alloc[size];
@@ -252,7 +252,7 @@ void ReadThread(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp time,
     // seconds
     double dur = SecDur(std::chrono::high_resolution_clock::now() - time).count();
     // "peek" at the next set of values (length returned)
-    seek_sample = (144000 * dur);
+    seek_sample = static_cast<int>(144000 * dur);
     // check values against sample count
     // synchro call has no means of reporting whether the operation was successful!
     if (seek_sample > contents_length) {

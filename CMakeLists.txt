@@ -116,17 +116,12 @@ endforeach(TESTFILE)
 
 if(NOT ${pa_stub})
   add_subdirectory(${deps_dir}/portaudio)
-  add_executable(portaudio_test ${exp_dir}/portaudioTest.cpp)
-  target_link_libraries(portaudio_test stb_vorbis)
-  target_include_directories(portaudio_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
-                                            PRIVATE ${pa_incdir})
 endif()
 
 add_subdirectory(${deps_dir}/glfw)
 
 if (NOT ${pa_stub})
   target_link_libraries(vorbismgr stb_vorbis portaudio)
-  target_link_libraries(portaudio_test DFT portaudio)
 endif()
 
 add_executable(cubedemo ${exp_dir}/cubedemo.cpp)

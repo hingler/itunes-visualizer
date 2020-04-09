@@ -6,9 +6,6 @@
 
 #include <string>
 
-#include <sys/ioctl.h>
-#include <unistd.h>
-
 // read a vorbis file
 // close it
 // give a VM the same file
@@ -36,40 +33,9 @@ TEST(VorbisManagerTests, CreateManager) {
   Pa_Terminate();
 }
 
-void DFTStream(ReadOnlyBuffer* buf) {
-  int offset = 0;
-  int samples_read;
-  float** output;
-  float* lreal;
-  float* limag;
-  float* amps;
-
-  
-  do {
-    offset = buf->Synchronize_Chunked() * 2;
-    samples_read = buf->Peek_Chunked(2048, &output);
-    dft::CalculateDFT(output[0], &lreal, &limag, samples_read);
-    amps = dft::GetAmplitudeArray(lreal, limag, samples_read);
-    winsize size;
-    ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
-    if (samples_read < 128) {
-      continue;
-    }
-    for (int i = 0; i < size.ws_row; i++) {
-      for (int j = 0; j < amps[i * 2]; j+= 2) {
-        std::cout << "=";
-      }
-      std::cout << "]" << std::endl;
-    }
-    std::this_thread::sleep_for(std::chrono::milliseconds(33));
-  } while (samples_read > 512);
-  std::cout << samples_read;
-  std::cout << "dft is done" << std::endl;
-}
-
 void ReadStream(float* check, ReadOnlyBuffer* buf) {
   int offset = 0;
-  int samples_read;
+  size_t samples_read;
   float** output;
   do {
     offset = buf->Synchronize_Chunked() * 2;
@@ -146,7 +112,6 @@ TEST(VorbisManagerTests, ShawtyWannaFuck) {
   std::thread checker(ReadStream, buffer, buf);
   std::thread checker2(ReadStream, buffer, buf_two);
   std::thread checker3(ReadStream, buffer, buf_three);
-  std::thread checker4(DFTStream, buf_four);
   std::cout << "start sleep" << std::endl;
   std::this_thread::sleep_for(std::chrono::milliseconds(10000));
 
@@ -160,8 +125,7 @@ TEST(VorbisManagerTests, ShawtyWannaFuck) {
   checker.join();
   checker2.join();
   checker3.join();
-  checker4.join();
-  delete buffer;
+  delete[] buffer;
 
   delete buf;
   delete buf_two;

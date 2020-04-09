@@ -252,7 +252,7 @@ void VorbisManager::EraseOrCallback(const std::function<void(std::shared_ptr<Flo
   }
 }
 
-bool VorbisManager::PopulateBuffers(int write_size) {
+bool VorbisManager::PopulateBuffers(unsigned int write_size) {
   if (write_size > critical_buffer_->Capacity()) {
     // something is wrong!
     return false;
