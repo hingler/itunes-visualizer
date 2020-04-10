@@ -29,6 +29,20 @@ GLuint CreateVBOFromArray(void* data, GLuint size, GLint usage);
 
 GLuint CreateEBOFromArray(unsigned int* data, GLuint size, GLint usage);
 
+/**
+ *  Creates a GL texture by loading the image located at a given filename.
+ *  Returns true if the file can be loaded successfully, and places its descriptor
+ *  in `output`.
+ * 
+ *  Returns false otherwise.
+ */ 
+bool CreateTextureFromFilename(const std::string& filename,
+                               GLint internal_format,
+                               GLint format,
+                               GLint datatype,
+                               GLint texunit,
+                               GLuint* output);
+
 }
 
 #endif  // SHADER_H_

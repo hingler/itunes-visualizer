@@ -108,3 +108,12 @@ GLuint GL::CreateEBOFromArray(unsigned int* data, GLuint size, GLint usage) {
 
   return ind;
 }
+
+bool GL::CreateTextureFromFilename(const std::string& filename,
+                                   GLint internal_format,
+                                   GLint format,
+                                   GLint texunit,
+                                   GLuint* output)
+{
+  
+}
