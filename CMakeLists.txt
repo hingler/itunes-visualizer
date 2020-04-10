@@ -23,7 +23,6 @@ if(MSVC)
 else()
   add_compile_options("-Wall")
 endif()
-
 add_subdirectory(${deps_dir}/glfw)
 
 add_library(timing src/timing/timing.cpp)
