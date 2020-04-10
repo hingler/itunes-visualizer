@@ -83,7 +83,6 @@ int main(int argc, char** argv) {
   glVertexAttribPointer(1, 2, GL_FLOAT, false, 0, (void*)0);
   
   GLuint ebo = GL::CreateEBOFromArray(indices, sizeof(indices), GL_STATIC_DRAW);
-  glBindVertexArray(ebo);
 
   glBindAttribLocation(prog, 0, "aPos");
   glBindAttribLocation(prog, 1, "aTex");
@@ -155,16 +154,12 @@ int main(int argc, char** argv) {
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(GL_TEXTURE_2D, textwo);
 
-
-  glUniform1f(glGetUniformLocation(prog, "time"), glfwGetTime());
-
-
-
   glUseProgram(prog);
 
   glUniform1i(glGetUniformLocation(prog, "tex"), 0);
   glUniform1i(glGetUniformLocation(prog, "textwo"), 1);
-  // uniform bindings are determined by active program
+  glUniform1f(glGetUniformLocation(prog, "time"), glfwGetTime());
+  // uniforms can only be bound if using a program
 
   glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
 
