@@ -72,7 +72,6 @@ void WriteThread(BufferPair* buf, uint32_t contents[]) {
 void ReadThread_STEREO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp time, int threadct) {
   SCOPED_TRACE("STEREO READ THREAD");
   int seek_sample = 0;
-  int seek_sample_last = 0;
   uint32_t** data;
   while (seek_sample < contents_length) {
     double dur = SecDur(std::chrono::high_resolution_clock::now() - time).count();
@@ -84,8 +83,6 @@ void ReadThread_STEREO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrct
       break;
     }
 
-    seek_sample_last = seek_sample;
-
     // grabs write until it updates
     while (buf->Size() == 0);
     // once it updates, sync
@@ -96,7 +93,7 @@ void ReadThread_STEREO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrct
       read_size = buf->Peek_Chunked(1024, &data);
     } while (read_size == 0);
     std::cout << seek_sample << std::endl;
-    for (int i = 0; i < read_size; i++) {
+    for (size_t i = 0; i < read_size; i++) {
       // two threads
       // writing interleaved
       // start should be 2 * seek_sample
@@ -120,7 +117,6 @@ void ReadThread_MONO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp 
   // read from a singular buffer
   // verify its contents
   int seek_sample = 0;
-  int seek_sample_last = 0;
   uint32_t* data;
   while (seek_sample < contents_length * 2) {
     // synchronize based on the sample count
@@ -133,8 +129,6 @@ void ReadThread_MONO(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp 
     if (seek_sample >= contents_length * 2) {
       break;
     }
-
-    seek_sample_last = seek_sample;
 
     // grabs write until it updates
     while (buf->Size() == 0);

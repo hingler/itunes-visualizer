@@ -41,7 +41,7 @@ void ReadStream(float* check, ReadOnlyBuffer* buf) {
     offset = buf->Synchronize_Chunked() * 2;
     samples_read = buf->Peek_Chunked(2048, &output);
     // note: left on 0, right on 1
-    for (int i = 0; i < samples_read; i += 64) {
+    for (size_t i = 0; i < samples_read; i += 64) {
       
       if (check[offset + (2 * i)] != output[0][i]) {
         std::cout << "bad match: frame " << (offset/2 + i) << "L" << std::endl;

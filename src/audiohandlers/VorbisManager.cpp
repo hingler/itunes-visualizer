@@ -40,7 +40,7 @@ void TimeInfo::ResetEpoch() {
 
 // READONLYBUFFER CODE
 ReadOnlyBuffer::ReadOnlyBuffer(std::shared_ptr<AudioBufferSPSC<float>> buffer, 
-                               const TimeInfo* info) : buffer_(buffer), info_(info) {}
+                               const TimeInfo* info) : info_(info), buffer_(buffer) {}
 
 size_t ReadOnlyBuffer::Peek_Chunked(uint32_t framecount, float*** output) {
   return buffer_->Peek_Chunked(framecount, output);
@@ -159,8 +159,9 @@ VorbisManager::~VorbisManager() {
 
 // PRIVATE FUNCTIONS
 
-VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : info(), buffer_power_(twopow + 1),
-                                                             run_thread_(false) {
+VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : run_thread_(false), 
+                                                             buffer_power_(twopow + 1), info()
+                                                              {
   stb_vorbis_info info = stb_vorbis_get_info(file);
   channel_count_ = info.channels;
   sample_rate_ = info.sample_rate;
@@ -171,7 +172,6 @@ VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : info(), buffer_powe
 
 void VorbisManager::WriteThreadFn() {
   uint32_t write_threshold = critical_buffer_->Capacity() / 2;
-  int samples_read;
 
   PaError err;
 
@@ -259,7 +259,7 @@ bool VorbisManager::PopulateBuffers(unsigned int write_size) {
     // what the fuck are you doing broh!
   }
 
-  int readsize = stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, read_buffer_, write_size);
+  unsigned int readsize = stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, read_buffer_, write_size);
   // spin until space is available
   while (critical_buffer_->GetMaximumWriteSize() < write_size);
 

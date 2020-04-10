@@ -24,13 +24,13 @@ class AudioBufferSPSC {
     channel_count_(channel_count),
     buffer_capacity_(pow(2, twopow) * channel_count_),
     buffer_(new BUFFER_UNIT[buffer_capacity_]),
-    shared_read_(0),
-    shared_write_(0),
-    reader_thread_({0, 0}),
-    writer_thread_({0, 0}),
-    read_marker_(0),
     readzone_(new BUFFER_UNIT[buffer_capacity_]),
-    channelzone_(new BUFFER_UNIT*[channel_count])
+    channelzone_(new BUFFER_UNIT*[channel_count]),
+    reader_thread_({0, 0}),
+    shared_read_(0),
+    read_marker_(0),
+    writer_thread_({0, 0}),
+    shared_write_(0)
     {
       writer_thread_.safesize = buffer_capacity_;
     }
@@ -108,7 +108,7 @@ class AudioBufferSPSC {
     uint32_t masked_read = Mask(reader_thread_.position);
 
     for (uint32_t i = 0; i < len; i++) {
-      for (uint32_t j = 0; j < channel_count_; j++) {
+      for (int j = 0; j < channel_count_; j++) {
         if (masked_read >= buffer_capacity_) {
           masked_read -= buffer_capacity_;
         }
@@ -202,7 +202,7 @@ class AudioBufferSPSC {
     }
 
     uint32_t masked_read = Mask(reader_thread_.position);
-    for (int i = 0; i < count; i++) {
+    for (uint32_t i = 0; i < count; i++) {
       if (masked_read >= buffer_capacity_) {
         masked_read -= buffer_capacity_;
       }
@@ -233,7 +233,7 @@ class AudioBufferSPSC {
 
     uint32_t masked_read = Mask(reader_thread_.position);
     for (uint32_t i = 0; i < framecount; i++) {
-      for (uint32_t j = 0; j < channel_count_; j++) {
+      for (int j = 0; j < channel_count_; j++) {
         if (masked_read >= buffer_capacity_) {
           masked_read -= buffer_capacity_;
         }
@@ -482,7 +482,7 @@ class AudioBufferSPSC {
   
   void RefreshChannelZone() {
     int per_channel_capacity = (buffer_capacity_ / channel_count_);
-    for (size_t i = 0; i < channel_count_; i++) {
+    for (int i = 0; i < channel_count_; i++) {
       channelzone_[i] = readzone_ + (i * per_channel_capacity);
     }
   }
