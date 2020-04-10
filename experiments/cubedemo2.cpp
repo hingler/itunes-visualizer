@@ -63,8 +63,8 @@ int main(int argc, char** argv) {
 
   GLuint prog;
 
-  if (!GL::CreateProgram("../experiments/texturetest/samplevert.vert.glsl",
-                         "../experiments/texturetest/samplefrag.frag.glsl", &prog)) 
+  if (!GL::CreateProgram("resources/texturetest/samplevert.vert.glsl",
+                         "resources/texturetest/samplefrag.frag.glsl", &prog)) 
     {
       std::cout << "failed to create program." << std::endl;
       glfwTerminate();
@@ -98,10 +98,10 @@ int main(int argc, char** argv) {
   int ichannels;
 
   stbi_set_flip_vertically_on_load(1);
-  unsigned char* data = stbi_load("../experiments/monkey.png", &iwidth, &iheight, &ichannels, 0);
+  unsigned char* data = stbi_load("resources/monkey.png", &iwidth, &iheight, &ichannels, 0);
 
   if (!data) {
-    std::cout << "Failed to load" << std::endl;
+    std::cout << "Failed to load the monkey" << std::endl;
     stbi_image_free(data);
     glfwTerminate();
     return EXIT_FAILURE;
@@ -129,10 +129,10 @@ int main(int argc, char** argv) {
   glActiveTexture(GL_TEXTURE1);
   glBindTexture(GL_TEXTURE_2D, textwo);
 
-  data = stbi_load("../experiments/untitled.png", &iwidth, &iheight, &ichannels, 0);
+  data = stbi_load("resources/untitled.png", &iwidth, &iheight, &ichannels, 0);
 
   if (!data) {
-    std::cout << "Failed to load" << std::endl;
+    std::cout << "Failed to load beet" << std::endl;
     stbi_image_free(data);
     glfwTerminate();
     return EXIT_FAILURE;

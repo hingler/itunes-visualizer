@@ -13,13 +13,15 @@
 // give the buffer to the stub code to verify that the input is correct
 // and also that it does not terminate early
 
-const std::string testfile = "../../testtunes.ogg";
+const std::string testfile = "resources/flap_jack_scream.ogg";
 
 /**
  *  Some assurances on the basic state of a newly constructed manager
  */ 
 TEST(VorbisManagerTests, CreateManager) {
-  Pa_Initialize();
+  int err = Pa_Initialize();
+  std::cout << Pa_GetDeviceCount() << std::endl;
+  ASSERT_EQ(err, paNoError);
   VorbisManager* mgr = VorbisManager::GetVorbisManager(15, testfile);
   ASSERT_NE(mgr, nullptr);
   ASSERT_FALSE(mgr->IsThreadRunning());
@@ -95,7 +97,8 @@ TEST(VorbisManagerTests, ShawtyWannaFuck) {
   stb_vorbis_get_samples_float_interleaved(vorbis, 2, buffer, filelen * 2);
   stb_vorbis_close(vorbis);
   
-  Pa_Initialize();
+  err = Pa_Initialize();
+  ASSERT_EQ(err, paNoError);
   VorbisManager* mgr = VorbisManager::GetVorbisManager(14, testfile);
   ASSERT_NE(mgr, nullptr);
   ReadOnlyBuffer* buf = mgr->CreateBufferInstance();

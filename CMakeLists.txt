@@ -1,3 +1,5 @@
+# todo: revisit and restructure :)
+
 cmake_minimum_required(VERSION 3.0.0)
 project(itunes-visualizer VERSION 0.1.0)
 
@@ -22,10 +24,14 @@ else()
   add_compile_options("-Wall")
 endif()
 
+add_subdirectory(${deps_dir}/glfw)
+
 add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
 add_library(shader src/gl/GL.cpp)
+
+target_link_libraries(shader PRIVATE glfw glad)
 
 add_library(glad ${deps_dir}/glad/src/glad.c)
 target_include_directories(glad PUBLIC ${deps_dir}/glad/include)
@@ -127,8 +133,6 @@ if(NOT ${pa_stub})
   add_subdirectory(${deps_dir}/portaudio)
 endif()
 
-add_subdirectory(${deps_dir}/glfw)
-
 if (NOT ${pa_stub})
   target_link_libraries(vorbismgr stb_vorbis portaudio)
 endif()
@@ -140,6 +144,10 @@ target_include_directories(cubedemo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 add_executable(cubedemo_two ${exp_dir}/cubedemo2.cpp)
 target_link_libraries(cubedemo_two PRIVATE glad glfw shader stb_image)
 target_include_directories(cubedemo_two PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+## COPY RESOURCES ##
+
+file(COPY ${exp_dir}/resources DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 
 ### FINAL CONFIGS ###
 

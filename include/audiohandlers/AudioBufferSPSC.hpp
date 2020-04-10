@@ -258,7 +258,7 @@ class AudioBufferSPSC {
   void Synchronize(uint32_t sample_num) {
     std::lock_guard<std::mutex> lock(read_lock_);
     // take into account cases where the sample point is behind current
-    uint32_t count = sample_num - read_marker_.load(std::memory_order_acquire);
+    int32_t count = sample_num - read_marker_.load(std::memory_order_acquire);
     // ensure that we have enough space to leap
     if (count > 0) {
       if (count > reader_thread_.safesize) {
@@ -375,7 +375,7 @@ class AudioBufferSPSC {
    *  Wipes the contents of the queue. Not thread safe.
    */ 
   void Clear() {
-    std::scoped_lock (read_lock_, write_lock_);
+    std::scoped_lock lock(read_lock_, write_lock_);
     writer_thread_.position = 0;
     reader_thread_.position = 0;
     writer_thread_.safesize = buffer_capacity_;

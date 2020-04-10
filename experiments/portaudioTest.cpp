@@ -6,10 +6,6 @@
 #include <cmath>
 #include <thread>
 
-
-#include <sys/ioctl.h>
-#include <unistd.h>
-
 struct Period {
   float left_phase;
   float right_phase;
@@ -162,16 +158,6 @@ static int TestCallback(  const void* inputBuffer,
   float* imagOut;
   dft::CalculateDFT(output, &realOut, &imagOut, 1024);
   float* amp = dft::GetAmplitudeArray(realOut, imagOut, 1024);
-
-  winsize size;
-  ioctl(STDOUT_FILENO, TIOCGWINSZ, &size);
-  for (int h = 0; h < size.ws_row; h++) {
-    int buf = (128 / size.ws_row) * h;
-    for (int i = 0; i < amp[buf]; i++) {
-      std::cout << '=';
-    }
-    std::cout << ']' << std::endl;
-  }
 
   delete[] realOut;
   delete[] imagOut;
