@@ -16,6 +16,12 @@ set(deps_dir ${CMAKE_CURRENT_SOURCE_DIR}/deps)
 # sidenote: can include static libs without `add_library`
 # just add it thats all you do
 
+if(MSVC)
+  add_compile_options("/W4 /WX")
+else()
+  add_compile_options("-Wall")
+endif()
+
 add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
