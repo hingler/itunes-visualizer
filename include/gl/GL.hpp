@@ -1,5 +1,5 @@
 /**
- *  Shader class which wraps around GL calls
+ *  Namespace which wraps around GL calls
  *  Cuts down on excessive variable definitions within
  *  currently active scope.
  * 

@@ -32,8 +32,8 @@ add_subdirectory(${deps_dir}/glm)
 add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
-add_library(shader src/gl/GL.cpp)
-
+add_library(GL src/gl/GL.cpp)
+# add_library(audioshaders )
 
 add_library(glad ${deps_dir}/glad/src/glad.c)
 target_include_directories(glad PUBLIC ${deps_dir}/glad/include)
@@ -42,9 +42,9 @@ add_library(stb_vorbis ${deps_dir}/stb_vorbis/stb_vorbis.c)
 add_library(stb_image ${deps_dir}/stb_image/stbi.c)
 target_include_directories(stb_image PUBLIC ${deps_dir}/stb_image)
 
-target_include_directories(shader PUBLIC ${deps_dir}/glm)
-target_link_libraries(shader PUBLIC glfw glad glm)
-target_link_libraries(shader PRIVATE stb_image)
+target_include_directories(GL PUBLIC ${deps_dir}/glm)
+target_link_libraries(GL PUBLIC glfw glad glm)
+target_link_libraries(GL PRIVATE stb_image)
 
 set(pa_stub OFF)
 
@@ -69,7 +69,9 @@ target_include_directories(vorbismgr PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
 
 target_include_directories(stb_vorbis PUBLIC ${deps_dir}/stb_vorbis/include)
 
-target_include_directories(shader PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_include_directories(GL PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# target_include_directories(audioshaders PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 set_target_properties(vorbismgr 
                       PROPERTIES LINKER_LANGUAGE CXX)
@@ -143,11 +145,11 @@ if (NOT ${pa_stub})
 endif()
 
 add_executable(cubedemo ${exp_dir}/cubedemo.cpp)
-target_link_libraries(cubedemo PRIVATE glad glfw shader)
+target_link_libraries(cubedemo PRIVATE glad glfw GL)
 target_include_directories(cubedemo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 add_executable(cubedemo_two ${exp_dir}/cubedemo2.cpp)
-target_link_libraries(cubedemo_two PRIVATE glad glfw shader stb_image)
+target_link_libraries(cubedemo_two PRIVATE glad glfw GL stb_image)
 target_include_directories(cubedemo_two PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 ## COPY RESOURCES ##
