@@ -9,9 +9,13 @@
 #ifndef GL_H_
 #define GL_H_
 
+// header includes should be public
+// others should be private
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 #include <string>
+
+
 
 // set of functions which cut down on some of the BS
 namespace GL {
@@ -40,9 +44,20 @@ bool CreateTextureFromFilename(const std::string& filename,
                                GLint internal_format,
                                GLint format,
                                GLint datatype,
+                               GLuint* output);
+
+/**
+ *  Overloaded create texture call which allows the user to specify
+ *  which texture unit they wish to bind to.
+ */ 
+bool CreateTextureFromFilename(const std::string& filename,
+                               GLint internal_format,
+                               GLint format,
+                               GLint datatype,
                                GLint texunit,
                                GLuint* output);
 
+
 }
 
-#endif  // SHADER_H_
+#endif  // GL_H_

@@ -23,14 +23,17 @@ if(MSVC)
 else()
   add_compile_options("-Wall")
 endif()
+
+set(BUILD_STATIC_LIBS ON)
+
 add_subdirectory(${deps_dir}/glfw)
+add_subdirectory(${deps_dir}/glm)
 
 add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
 add_library(shader src/gl/GL.cpp)
 
-target_link_libraries(shader PRIVATE glfw glad)
 
 add_library(glad ${deps_dir}/glad/src/glad.c)
 target_include_directories(glad PUBLIC ${deps_dir}/glad/include)
@@ -38,6 +41,10 @@ add_library(stb_vorbis ${deps_dir}/stb_vorbis/stb_vorbis.c)
 
 add_library(stb_image ${deps_dir}/stb_image/stbi.c)
 target_include_directories(stb_image PUBLIC ${deps_dir}/stb_image)
+
+target_include_directories(shader PUBLIC ${deps_dir}/glm)
+target_link_libraries(shader PUBLIC glfw glad glm)
+target_link_libraries(shader PRIVATE stb_image)
 
 set(pa_stub OFF)
 
@@ -63,7 +70,6 @@ target_include_directories(vorbismgr PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include
 target_include_directories(stb_vorbis PUBLIC ${deps_dir}/stb_vorbis/include)
 
 target_include_directories(shader PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(shader PRIVATE glad)
 
 set_target_properties(vorbismgr 
                       PROPERTIES LINKER_LANGUAGE CXX)

@@ -287,11 +287,11 @@ int VorbisManager::PaCallback(  const void* input,
   CallbackPacket* packet = reinterpret_cast<CallbackPacket*>(userdata);
   float* outputData = reinterpret_cast<float*>(output);
   FloatBuf* buf = packet->buf;
-  int samplecount = frameCount * (buf->GetChannelCount());
+  size_t samplecount = frameCount * (buf->GetChannelCount());
   if (!buf->ReadToBuffer(samplecount, outputData)) {
     if (buf->Empty()) {
       // send zeroes to the buffer
-      for (int i = 0; i < samplecount; i++) {
+      for (size_t i = 0; i < samplecount; i++) {
         outputData[i] = 0.0f;
       }
       packet->callback_signal.clear();
@@ -300,7 +300,7 @@ int VorbisManager::PaCallback(  const void* input,
       // read what we can and pad the rest with zeroes
       float* remainingData;
       size_t samples_read = buf->Peek(samplecount, &remainingData);
-      int offset;
+      size_t offset;
       for (offset = 0; offset < samples_read; offset++) {
         outputData[offset] = remainingData[offset];
       }

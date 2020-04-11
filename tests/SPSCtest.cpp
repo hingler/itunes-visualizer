@@ -247,7 +247,6 @@ void ReadThread(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp time,
   // read from a singular buffer
   // verify its contents
   int seek_sample = 0;
-  int seek_sample_last = 0;
   uint32_t* data;
   while (seek_sample < contents_length) {
     // synchronize based on the sample count
@@ -261,8 +260,6 @@ void ReadThread(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp time,
       break;
     }
 
-    seek_sample_last = seek_sample;
-
     // grabs write until it updates
     while (buf->Size() == 0);
     // once it updates, sync
@@ -273,7 +270,7 @@ void ReadThread(AudioBufferSPSC<uint32_t>* buf, uint32_t contents[], hrctp time,
       read_size = buf->Peek(1024, &data);
       // end of buffer: no discerning factor
     } while (read_size == 0);
-    for (int i = 0; i < read_size; i++) {
+    for (size_t i = 0; i < read_size; i++) {
       ASSERT_EQ(contents[i + seek_sample], data[i]);
     }
 

@@ -5,6 +5,7 @@
 #include <iostream>
 
 #include "gl/GL.hpp"
+#include "stbi.h"
 
 bool GL::CreateProgram(const std::string& vert, const std::string& frag, GLuint* output) {
   
@@ -112,8 +113,42 @@ GLuint GL::CreateEBOFromArray(unsigned int* data, GLuint size, GLint usage) {
 bool GL::CreateTextureFromFilename(const std::string& filename,
                                    GLint internal_format,
                                    GLint format,
+                                   GLint datatype,
+                                   GLuint* output)
+{
+  return CreateTextureFromFilename(filename, internal_format, format, datatype, GL_TEXTURE0, output);
+}
+
+bool GL::CreateTextureFromFilename(const std::string& filename,
+                                   GLint internal_format,
+                                   GLint format,
+                                   GLint datatype,
                                    GLint texunit,
                                    GLuint* output)
 {
-  
+  int width, height, nr_channels;
+  unsigned char* data = stbi_load(filename.c_str(), &width, &height, &nr_channels, 0);
+
+  if (data == NULL) {
+    return false;
+  }
+
+  glActiveTexture(texunit);
+
+  GLuint tex;
+  glGenTextures(1, &tex);
+  glBindTexture(GL_TEXTURE_2D, tex);
+
+  glTexImage2D(GL_TEXTURE_2D, 0, internal_format, width, height, 0, format, datatype, data);
+  glGenerateMipmap(GL_TEXTURE_2D);
+
+  stbi_image_free(data);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+
+  return true;
 }
