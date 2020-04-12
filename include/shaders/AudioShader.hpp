@@ -16,7 +16,7 @@ class AudioShader {
    *  sample_data: pointer to raw samples
    *  length: number of elements
    */ 
-  virtual void Render(float* sample_data, int length) = 0;
+  virtual void Render(float* sample_data, unsigned int length) = 0;
 
   /**
    *  Returns name of all configurable inputs to the shader.
@@ -26,7 +26,7 @@ class AudioShader {
   /**
    *  Sets the value associated with a given parameter.
    */ 
-  virtual void SetParameter(std::string& param_name, std::any value) = 0;
+  virtual void SetParameter(const std::string& param_name, std::any value) = 0;
 
  private:
   
