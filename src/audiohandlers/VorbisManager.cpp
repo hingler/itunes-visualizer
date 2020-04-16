@@ -25,7 +25,7 @@ int TimeInfo::GetCurrentSample() const {
 
 bool TimeInfo::IsThreadRunning() const {
   std::shared_lock lock(info_lock_);
-  return (sample_rate_ <= 0);
+  return !(sample_rate_ <= 0);
 }
 
 void TimeInfo::SetSampleRate(int sample_rate) {
@@ -142,6 +142,10 @@ void VorbisManager::StopWriteThread() {
   }
 }
 
+void VorbisManager::ThreadWait() {
+  while (run_thread_.load(std::memory_order_acquire));
+}
+
 bool VorbisManager::IsThreadRunning() {
   return run_thread_.load(std::memory_order_acquire);
 }
@@ -162,9 +166,9 @@ VorbisManager::~VorbisManager() {
 VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : run_thread_(false), 
                                                              buffer_power_(twopow + 1), info()
                                                               {
-  stb_vorbis_info info = stb_vorbis_get_info(file);
-  channel_count_ = info.channels;
-  sample_rate_ = info.sample_rate;
+  stb_vorbis_info fileinfo = stb_vorbis_get_info(file);
+  channel_count_ = fileinfo.channels;
+  sample_rate_ = fileinfo.sample_rate;
   audiofile_ = file;
   critical_buffer_ = new FloatBuf(twopow, channel_count_);
   read_buffer_ = new float[critical_buffer_->Capacity()];

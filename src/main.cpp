@@ -1,5 +1,63 @@
 #include <iostream>
 
+#include "glad/glad.h"
+#include "GLFW/glfw3.h"
+
+#include "audiohandlers/VorbisManager.hpp"
+#include "portaudio.h"
+#include "gl/GL.hpp"  // shitty name
+
+void SizeChangeCallback(GLFWwindow* window, int width, int height);
+
 int main(int argc, char** argv) {
-  std::cout << "hello" << std::endl;
+  // setup the engine
+  if (argc < 2) {
+    // bag args
+    std::cout << "Invalid number of arguments provided." << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  Pa_Initialize();
+
+  std::unique_ptr<VorbisManager> vm(VorbisManager::GetVorbisManager(15, argv[1]));
+  if (vm == nullptr) {
+    // invalid filename or some other error
+    return EXIT_FAILURE;
+  }
+
+  // vm is up
+  // main thread is render thread
+  // no other threads should be necessary
+  std::unique_ptr<ReadOnlyBuffer> rob(vm->CreateBufferInstance());
+
+  if (!glfwInit()) {
+    std::cout << "failed to initialize glfw" << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+  glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 1);
+
+  GLFWwindow* window = glfwCreateWindow(1024, 768, "pizza planet", NULL, NULL);
+
+  if (window == NULL) {
+    glfwTerminate();
+    std::cout << "failed to create window" << std::endl;
+    return EXIT_FAILURE;
+  }
+
+  glfwMakeContextCurrent(window);
+
+  gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
+
+  glViewport(0, 0, 1024, 768);
+
+  glfwSetFramebufferSizeCallback(window, SizeChangeCallback);
+
+  
+  
+}
+
+void SizeChangeCallback(GLFWwindow* window, int width, int height) {
+  glViewport(0, 0, width, height);
 }

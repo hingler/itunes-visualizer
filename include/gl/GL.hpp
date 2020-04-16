@@ -57,7 +57,6 @@ bool CreateTextureFromFilename(const std::string& filename,
                                GLint texunit,
                                GLuint* output);
 
-
 }
 
 #endif  // GL_H_

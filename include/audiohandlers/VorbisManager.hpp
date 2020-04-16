@@ -140,6 +140,11 @@ class VorbisManager {
   bool IsThreadRunning();
 
   /**
+   *  Spins until the thread is complete.
+   */ 
+  void ThreadWait();
+
+  /**
    *  Destructor for the VorbisManager.
    */ 
   ~VorbisManager();

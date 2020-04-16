@@ -116,7 +116,7 @@ TEST(VorbisManagerTests, ShawtyWannaFuck) {
   std::thread checker2(ReadStream, buffer, buf_two);
   std::thread checker3(ReadStream, buffer, buf_three);
   std::cout << "start sleep" << std::endl;
-  std::this_thread::sleep_for(std::chrono::milliseconds(10000));
+  mgr->ThreadWait();
 
   // an issue arises with verifying this after a call to ForceWrite -- each buffer is adjusted independently
   // by some unknown amount, so we cannot determine where exactly in the file it is reading from.

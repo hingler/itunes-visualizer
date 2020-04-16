@@ -1,3 +1,6 @@
+#ifndef AUDIO_SHADER_H_
+#define AUDIO_SHADER_H_
+
 
 /**
  *  Abstract class which interacts with render thread to produce visuals.
@@ -48,3 +51,5 @@ class AudioShader {
   }
 
 };  // class AudioShader
+
+#endif  // AUDIO_SHADER_H_

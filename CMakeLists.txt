@@ -19,7 +19,6 @@ set(deps_dir ${CMAKE_CURRENT_SOURCE_DIR}/deps)
 # just add it thats all you do
 
 if(MSVC)
-  add_compile_options("/W4 /WX")
 else()
   add_compile_options("-Wall")
 endif()

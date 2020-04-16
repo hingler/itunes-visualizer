@@ -103,7 +103,6 @@ int main(int argc, char** argv) {
   // stick the data contained in `vertices` into the buffer
   // currently designated as `GL_ARRAY_BUFFER`.
   glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
-  GLuint vertShader = glCreateShader(GL_VERTEX_SHADER);
 
   // create shader
   GLuint prog;
