@@ -42,6 +42,12 @@ namespace dft {
  *  - a boolean representing whether the FFT operation could occur.
  *    true if successful, false otherwise.
  */
+bool CalculateDFT(const float* input, float* real_output, float* imag_output, uint32_t len);
+
+/**
+ *  same shit but allocates memory for user and outputs the result
+ *  via parameter.
+ */ 
 bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32_t len);
 
 /**
@@ -51,12 +57,17 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
  * Parameters:
  *  - real, a pointer to the real component of the transform.
  *  - imag, a pointer to the imaginary component of the transform.
+ *  - output, output param containing preallocated array
  */ 
+void GetAmplitudeArray(float* real, float* imag, float* output, uint32_t len);
+
+// same as above, but allocates space for the user.
 float* GetAmplitudeArray(float* real, float* imag, uint32_t len);
+
 
 // HELPER FUNCTIONS BELOW -- oops
 
-void ReverseBitsArray(float* src, std::vector<float>& dst, uint32_t len);
+void ReverseBitsArray(const float* src, float* dst, uint32_t len);
 
 uint32_t ReverseBits(uint32_t input, uint8_t bit_width);
 

@@ -7,15 +7,12 @@
 #include <vector>
 
 namespace dft {
-bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32_t len) {
+bool CalculateDFT(const float* input, float* real_output, float* imag_output, uint32_t len) {
   if (len & (len - 1) || len < 2) {
     return false;
   }
 
-  std::vector<float> real_int(len);
-  std::vector<float> imag_int(len);
-
-  ReverseBitsArray(input, real_int, len);
+  ReverseBitsArray(input, real_output, len);
 
   std::vector<double> sin_table(len / 2, 0);
   std::vector<double> cos_table(len / 2, 0);
@@ -29,7 +26,7 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
   }
 
   for (uint32_t i = 0; i < len; i++) {
-    imag_int[i] = 0;
+    imag_output[i] = 0;
   }
 
   uint32_t even_ind;
@@ -54,40 +51,47 @@ bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32
         cos_res = cos_table[(k * len) / (2 * size)];
         
         // calculate odd part (add/subtract)
-        odd_imag = sin_res * real_int[odd_ind] + cos_res * imag_int[odd_ind];
-        odd_real = cos_res * real_int[odd_ind] - sin_res * imag_int[odd_ind];
+        odd_imag = sin_res * real_output[odd_ind] + cos_res * imag_output[odd_ind];
+        odd_real = cos_res * real_output[odd_ind] - sin_res * imag_output[odd_ind];
 
-        imag_int[size + even_ind] = static_cast<float>(imag_int[even_ind] - odd_imag);
-        real_int[size + even_ind] = static_cast<float>(real_int[even_ind] - odd_real);
-        imag_int[even_ind] = static_cast<float>(imag_int[even_ind] + odd_imag);
-        real_int[even_ind] = static_cast<float>(real_int[even_ind] + odd_real);
+        imag_output[size + even_ind] = static_cast<float>(imag_output[even_ind] - odd_imag);
+        real_output[size + even_ind] = static_cast<float>(real_output[even_ind] - odd_real);
+        imag_output[even_ind] = static_cast<float>(imag_output[even_ind] + odd_imag);
+        real_output[even_ind] = static_cast<float>(real_output[even_ind] + odd_real);
       }
     }
-  }
-
-  *real_output = new float[len];
-  *imag_output = new float[len];
-
-  for (uint32_t i = 0; i < len; i++) {
-    (*real_output)[i] = real_int[i];
-    (*imag_output)[i] = imag_int[i];
   }
 
   return true;
 }
 
-float* GetAmplitudeArray(float* real, float* imag, uint32_t len) {
-  float* result = new float[len];
-  for (uint32_t i = 0; i < len; i++) {
-    result[i] = sqrt((*real * *real) + (*imag * *imag));
-    real++;
-    imag++;
+bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32_t len) {
+  if (len & (len - 1) || len < 2) {
+    return false;
   }
 
+  *real_output = new float[len];
+  *imag_output = new float[len];
+  CalculateDFT(input, *real_output, *imag_output, len);
+}
+
+float* GetAmplitudeArray(float* real, float* imag, uint32_t len) {
+  float* result = new float[len];
+  GetAmplitudeArray(real, imag, result, len);
   return result;
 }
 
-void ReverseBitsArray(float* src, std::vector<float>& dst, uint32_t len) {
+void GetAmplitudeArray(float* real, float* imag, float* output, uint32_t len) {
+  for (uint32_t i = 0; i < len; i++) {
+    output[i] = sqrt((*real * *real) + (*imag * *imag));
+    real++;
+    imag++;
+  }
+}
+
+// write the other one
+
+void ReverseBitsArray(float* src, float* dst, uint32_t len) {
   uint8_t bit_width = 0;
 
   uint32_t len_copy = len - 1;
