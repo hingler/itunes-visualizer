@@ -63,8 +63,8 @@ bool GL::CreateProgram(const std::string& vert, const std::string& frag, GLuint*
   glGetShaderiv(frag_shader, GL_COMPILE_STATUS, &success);
   if (!success) {
     char info[512];
-    glGetShaderInfoLog(vert_shader, 512, NULL, info);
-    std::cout << "error while compiling fragment shader:\n" << info << std::endl;
+    glGetShaderInfoLog(frag_shader, 512, NULL, info);
+    std::cout << "error while compiling fragment shader: " << info << std::endl;
 
     glDeleteShader(vert_shader);
     glDeleteShader(frag_shader);
