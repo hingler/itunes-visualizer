@@ -3,14 +3,18 @@
 precision highp float;
 precision mediump int;
 
-const int EQ_SIZE = 512;
+out vec4 FragColor;
 
-uniform float[EQ_SIZE] uData;    // transform data
+const int EQ_SIZE = 960;
+
+uniform float uData[EQ_SIZE];    // transform data
 uniform vec2 uCoords;
+
+uniform float time;
 
 void main() {
   // 0 to 1
   vec2 pos = gl_FragCoord.xy / uCoords;
-  int sample = floor(pos.x / EQ_SIZE);
-  gl_FragColor = vec4(vec3(pos.y < (log(uData[sample]) / 4)), 1.0);
+  int index = int(pos.x * EQ_SIZE);
+  FragColor = vec4(vec3(pos.y < sqrt(uData[index]) / 16), 1.0);
 }
