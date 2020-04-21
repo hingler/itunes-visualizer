@@ -67,6 +67,8 @@ class ReadOnlyBuffer {
   // use the timeinfo here
   int Synchronize_Chunked();
 
+  int Synchronize_Chunked(float offset);
+
   int Size();
 
   ~ReadOnlyBuffer();

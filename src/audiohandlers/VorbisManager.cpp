@@ -51,9 +51,16 @@ float** ReadOnlyBuffer::Read_Chunked(uint32_t framecount) {
 }
 
 int ReadOnlyBuffer::Synchronize_Chunked() {
-  int samplenum = info_->GetCurrentSample();
-  if (samplenum == -1) {
-    return -1;
+  return Synchronize_Chunked(0);
+}
+
+int ReadOnlyBuffer::Synchronize_Chunked(float offset) {
+  int samplenum = info_->GetCurrentSample() + (offset * info_->sample_rate_);
+  if (samplenum < 0) {
+    samplenum = 0;
+    if (info_->GetCurrentSample() == -1) {
+      return -1;
+    }
   }
 
   buffer_->Synchronize_Chunked(samplenum);

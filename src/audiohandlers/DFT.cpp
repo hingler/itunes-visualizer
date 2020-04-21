@@ -65,14 +65,14 @@ bool CalculateDFT(const float* input, float* real_output, float* imag_output, ui
   return true;
 }
 
-bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32_t len) {
+bool CalculateDFT(const float* input, float** real_output, float** imag_output, uint32_t len) {
   if (len & (len - 1) || len < 2) {
     return false;
   }
 
   *real_output = new float[len];
   *imag_output = new float[len];
-  CalculateDFT(input, *real_output, *imag_output, len);
+  return CalculateDFT(input, *real_output, *imag_output, len);
 }
 
 float* GetAmplitudeArray(float* real, float* imag, uint32_t len) {
@@ -91,7 +91,7 @@ void GetAmplitudeArray(float* real, float* imag, float* output, uint32_t len) {
 
 // write the other one
 
-void ReverseBitsArray(float* src, float* dst, uint32_t len) {
+void ReverseBitsArray(const float* src, float* dst, uint32_t len) {
   uint8_t bit_width = 0;
 
   uint32_t len_copy = len - 1;

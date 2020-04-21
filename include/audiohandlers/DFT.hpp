@@ -48,7 +48,7 @@ bool CalculateDFT(const float* input, float* real_output, float* imag_output, ui
  *  same shit but allocates memory for user and outputs the result
  *  via parameter.
  */ 
-bool CalculateDFT(float* input, float** real_output, float** imag_output, uint32_t len);
+bool CalculateDFT(const float* input, float** real_output, float** imag_output, uint32_t len);
 
 /**
  * Get the amplitude output of the fourier transform.

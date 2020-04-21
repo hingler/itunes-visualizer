@@ -42,6 +42,7 @@ void ReadStream(float* check, ReadOnlyBuffer* buf) {
   do {
     offset = buf->Synchronize_Chunked() * 2;
     samples_read = buf->Peek_Chunked(2048, &output);
+    std::cout << output[0][4] << std::endl;
     // note: left on 0, right on 1
     for (size_t i = 0; i < samples_read; i += 64) {
       
