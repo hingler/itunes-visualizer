@@ -9,17 +9,17 @@
 #include <any>
 #include <string>
 
+#include <GLFW/glfw3.h>
+
 class AudioShader {
  public:
-  // constructor
-  AudioShader();
 
   /**
    *  Draws our shader to the currently active window.
    *  sample_data: pointer to raw samples
    *  length: number of elements
    */ 
-  virtual void Render(float* sample_data, unsigned int length) = 0;
+  virtual void Render(GLFWwindow* window, float* sample_data, size_t length) = 0;
 
   /**
    *  Returns name of all configurable inputs to the shader.
