@@ -72,6 +72,9 @@ int main(int argc, char** argv) {
     shader.Render(window, channeldata[0], samples_read);
     glfwSwapBuffers(window);
     glfwPollEvents();
+    if (!vm->IsThreadRunning()) {
+      glfwSetWindowShouldClose(window, 1);
+    }
   }
 
   vm->StopWriteThread();
