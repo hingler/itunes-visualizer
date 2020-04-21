@@ -67,6 +67,7 @@ int main(int argc, char** argv) {
 
   while (!glfwWindowShouldClose(window)) {
     framecount++;
+    // todo: sometimes synchronization might fail
     rob->Synchronize_Chunked(-0.2);
     samples_read = rob->Peek_Chunked(8192, &channeldata);
     shader.Render(window, channeldata[0], samples_read);
