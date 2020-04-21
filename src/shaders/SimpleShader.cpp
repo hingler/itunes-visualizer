@@ -53,8 +53,6 @@ void SimpleShader::Render(GLFWwindow* window, float* sample_data, size_t length)
 
   glfwGetFramebufferSize(window, &screencoords[0], &screencoords[1]);
 
-  std::cout << ampl_output[12] << std::endl;
-
   glUniform1fv(glGetUniformLocation(prog_, "uData"), 960, ampl_output);   // only the bottom 256
   glUniform2f(glGetUniformLocation(prog_, "uCoords"), static_cast<float>(screencoords[0]), static_cast<float>(screencoords[1]));  // screencoords
   glUniform1f(glGetUniformLocation(prog_, "time"), glfwGetTime());
