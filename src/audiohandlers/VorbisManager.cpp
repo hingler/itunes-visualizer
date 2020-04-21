@@ -265,6 +265,8 @@ bool VorbisManager::PopulateBuffers(unsigned int write_size) {
   unsigned int readsize = stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, read_buffer_, write_size);
   // spin until space is available
   while (critical_buffer_->GetMaximumWriteSize() < write_size);
+  // todo: this takes up a good chunk of cpu resources afaik
+  // telling the buffer to sleep a bit before checking this might be best
 
   int writesize = (readsize * channel_count_);
   auto callback = [this, writesize](std::shared_ptr<FloatBuf> buf) {

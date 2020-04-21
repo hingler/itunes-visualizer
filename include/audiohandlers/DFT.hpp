@@ -73,3 +73,11 @@ uint32_t ReverseBits(uint32_t input, uint8_t bit_width);
 
 }  // namespace dft;
 #endif  // DFT_H_
+
+/**
+ *  Todo: "Impulse" samples fill the visualizer unnaturally
+ *  my guess is that this has to do with the equal weight of "current samples" and "future/past" samples
+ *  solution:
+ *    - assume that the currently played sample is "now"
+ *    - multiply each successive sample's intensity by some gaussian function based on time offset from "now"
+ */ 

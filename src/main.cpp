@@ -53,6 +53,9 @@ int main(int argc, char** argv) {
   glfwSetFramebufferSizeCallback(window, SizeChangeCallback);
   SimpleShader shader;
 
+  // todo: use UBO to get all of the sample data in there
+  // or do it with a texture lol
+
   vm->StartWriteThread();
 
   float** channeldata;
