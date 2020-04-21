@@ -32,7 +32,11 @@ add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
 add_library(GL src/gl/GL.cpp)
-# add_library(audioshaders )
+add_library(shaders src/shaders/SimpleShader.cpp)
+
+target_include_directories(shaders PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(shaders PUBLIC glfw glad)
+target_link_libraries(shaders PRIVATE GL DFT)
 
 add_library(glad ${deps_dir}/glad/src/glad.c)
 target_include_directories(glad PUBLIC ${deps_dir}/glad/include)
@@ -119,6 +123,7 @@ set(timingtest_deps timing)
 set(DFTtest_deps DFT)
 set(SPSCtest_deps )
 set(SPSCPerChanneltest_deps )
+set(SimpleShadertest_deps )
 
 if(${pa_stub})
   set(Vorbistest_deps vorbismgr stb_vorbis pastub DFT)
@@ -150,6 +155,10 @@ target_include_directories(cubedemo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 add_executable(cubedemo_two ${exp_dir}/cubedemo2.cpp)
 target_link_libraries(cubedemo_two PRIVATE glad glfw GL stb_image)
 target_include_directories(cubedemo_two PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+add_executable(finale_dingo src/main.cpp)
+target_include_directories(finale_dingo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(finale_dingo shaders glad glfw portaudio vorbismgr)
 
 ## COPY RESOURCES ##
 
