@@ -46,7 +46,7 @@ class AudioShader {
   template <typename T>
   bool AttemptCast(std::any& target, T* output) {
     try {
-      *T = std::any_cast<T>(target);
+      *output = std::any_cast<T>(target);
     } catch (const std::bad_any_cast& e) {
       return false;
     }
