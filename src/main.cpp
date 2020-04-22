@@ -15,7 +15,7 @@ int main(int argc, char** argv) {
   if (argc < 2) {
     // bag args
     std::cout << "Invalid number of arguments provided." << std::endl;
-    return EXIT_FAILURE;
+    argv[1] = "resources/shawty.ogg";
   }
 
   Pa_Initialize();
