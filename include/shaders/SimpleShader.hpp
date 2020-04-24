@@ -21,6 +21,8 @@ class SimpleShader : public AudioShader {
   // uniform buffers
   GLuint uData_;
   GLuint uCoords_;
+
+  // vertex data
   GLuint aPos_;
 
   // vao

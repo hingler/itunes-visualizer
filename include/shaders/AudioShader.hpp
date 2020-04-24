@@ -9,7 +9,7 @@
 #include <any>
 #include <string>
 
-#include <GLFW/glfw3.h>
+#include "GLFW/glfw3.h"
 
 class AudioShader {
  public:
