@@ -1,13 +1,13 @@
-#ifndef MULTI_COLOR_SHADER_H
-#define MULTI_COLOR_SHADER_H
+#ifndef MULTI_COLOR_SHADER_H_
+#define MULTI_COLOR_SHADER_H_
 
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
 #include "shaders/AudioShader.hpp"
 
-class MultiColorShader : public AudioShader {
+class WaveShader : public AudioShader {
  public:
-  MultiColorShader();
+  WaveShader();
   void Render(GLFWwindow* window, float* sample_data, size_t length) override;
   const std::string* GetParameterNames() override;
   void SetParameter(const std::string& param_name, std::any value) override;
@@ -17,10 +17,10 @@ class MultiColorShader : public AudioShader {
   GLuint prog_;
 
   // tex id for dft data
-  GLuint dft_tex_;
+  GLuint uDftTex_;
 
   // vao
   GLuint vao_;
 };
 
-#endif  // MULTI_COLOR_SHADER_H
+#endif  // MULTI_COLOR_SHADER_H_

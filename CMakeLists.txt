@@ -32,7 +32,7 @@ add_library(timing src/timing/timing.cpp)
 add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
 add_library(GL src/gl/GL.cpp)
-add_library(shaders src/shaders/SimpleShader.cpp src/shaders/MultiColorShader.cpp)
+add_library(shaders src/shaders/SimpleShader.cpp src/shaders/WaveShader.cpp)
 
 target_include_directories(shaders PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(shaders PUBLIC glfw glad)
