@@ -5,6 +5,9 @@
 #include "GLFW/glfw3.h"
 #include "shaders/AudioShader.hpp"
 
+/**
+ *  Simple fella. I take no pride.
+ */ 
 class SimpleShader : public AudioShader {
  public:
   SimpleShader();
