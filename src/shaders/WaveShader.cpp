@@ -34,8 +34,8 @@ WaveShader::WaveShader() {
   }
 
   glBufferData(GL_ARRAY_BUFFER, sizeof(float) * vertex_cache.size(), vertex_cache.data(), GL_STATIC_DRAW);
-  
-  // not gonna gen mipmaps because its just a buffer
+}
 
+void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
   
 }
