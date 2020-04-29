@@ -34,6 +34,22 @@ class WaveShader : public AudioShader {
 
   // vertex buffer
   GLuint aPos_;
+
+  // other uniforms
+  GLuint texOffsetY_;  // for reading buffer history
+  GLuint spaceWidth_;  // z range
+  GLuint spaceDepth_;  // x range
+  GLuint viewMatrix_;  // view matrix
+  GLuint dftHistory_;  // texture spot
+
+  // where we should start reading from
+  int y_offset_ = 0;
+
+  // WORK SPACE
+  const static int BUFFER_SIZE = 8192;
+  float real_output[BUFFER_SIZE];
+  float imag_output[BUFFER_SIZE];
+  float ampl_output[BUFFER_SIZE];
 };
 
 #endif  // MULTI_COLOR_SHADER_H_
