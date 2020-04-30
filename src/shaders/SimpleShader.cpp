@@ -10,6 +10,7 @@ SimpleShader::SimpleShader() {
                          &prog_)) 
   {
     std::cout << "failed to load program" << std::endl;
+    std::cin.ignore();
     // no other choice at this point -- its gonna crash
     exit(EXIT_FAILURE);
   }
@@ -44,7 +45,7 @@ void SimpleShader::Render(GLFWwindow* window, float* sample_data, size_t length)
   maxlen >>= 1;
 
   dft::CalculateDFT(sample_data, real_output, imag_output, maxlen);
-  dft::GetAmplitudeArray(real_output, imag_output, ampl_output, maxlen);
+  dft::GetAmplitudeArray(real_output, imag_output, ampl_output, maxlen, false);
 
   glUseProgram(prog_);
   glBindVertexArray(vao_);
