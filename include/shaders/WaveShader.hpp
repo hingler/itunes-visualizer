@@ -1,5 +1,5 @@
-#ifndef MULTI_COLOR_SHADER_H_
-#define MULTI_COLOR_SHADER_H_
+#ifndef WAVE_SHADER_H_
+#define WAVE_SHADER_H_
 
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
@@ -16,8 +16,11 @@ class WaveShader : public AudioShader {
   const std::string* GetParameterNames() override;
   void SetParameter(const std::string& param_name, std::any value) override;
 
-  const int VERTEX_DEPTH = 64;      // number of vertices along Z
-  const int VERTEX_WIDTH = 1024;    // number of vertices along X
+  const int VERTEX_DEPTH = 128;      // number of vertices along Z
+  const int VERTEX_WIDTH = 512;    // number of vertices along X
+
+  const int TEXTURE_WIDTH = 8192;
+  const int TEXTURE_HEIGHT = 128;
 
   const float SPACE_WIDTH = 8.0f;   // width occupied by vertices in +/- x directions
   const float SPACE_DEPTH = 16.0f;  // depth occupied by vertices in -Z direction
@@ -41,9 +44,10 @@ class WaveShader : public AudioShader {
   GLuint spaceDepth_;  // x range
   GLuint viewMatrix_;  // view matrix
   GLuint dftHistory_;  // texture spot
+  GLuint cameraPozz_;  // camera position
 
   // where we should start reading from
-  int y_offset_ = 0;
+  int y_offset_;
 
   // WORK SPACE
   const static int BUFFER_SIZE = 8192;
@@ -52,4 +56,4 @@ class WaveShader : public AudioShader {
   float ampl_output[BUFFER_SIZE];
 };
 
-#endif  // MULTI_COLOR_SHADER_H_
+#endif  // WAVE_SHADER_H_
