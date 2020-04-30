@@ -75,15 +75,19 @@ bool CalculateDFT(const float* input, float** real_output, float** imag_output, 
   return CalculateDFT(input, *real_output, *imag_output, len);
 }
 
-float* GetAmplitudeArray(float* real, float* imag, uint32_t len) {
+float* GetAmplitudeArray(float* real, float* imag, uint32_t len, bool normalize) {
   float* result = new float[len];
-  GetAmplitudeArray(real, imag, result, len);
+  GetAmplitudeArray(real, imag, result, len, normalize);
   return result;
 }
 
-void GetAmplitudeArray(float* real, float* imag, float* output, uint32_t len) {
+void GetAmplitudeArray(float* real, float* imag, float* output, uint32_t len, bool normalize) {
+  float normalization_factor = sqrt(len);
   for (uint32_t i = 0; i < len; i++) {
     output[i] = sqrt((*real * *real) + (*imag * *imag));
+    if (normalize) {
+      output[i] /= normalization_factor;
+    }
     real++;
     imag++;
   }
