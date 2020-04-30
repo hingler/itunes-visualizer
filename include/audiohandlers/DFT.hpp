@@ -59,10 +59,10 @@ bool CalculateDFT(const float* input, float** real_output, float** imag_output, 
  *  - imag, a pointer to the imaginary component of the transform.
  *  - output, output param containing preallocated array
  */ 
-void GetAmplitudeArray(float* real, float* imag, float* output, uint32_t len);
+void GetAmplitudeArray(float* real, float* imag, float* output, uint32_t len, bool normalize);
 
 // same as above, but allocates space for the user.
-float* GetAmplitudeArray(float* real, float* imag, uint32_t len);
+float* GetAmplitudeArray(float* real, float* imag, uint32_t len, bool normalize);
 
 
 // HELPER FUNCTIONS BELOW -- oops
