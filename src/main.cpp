@@ -6,7 +6,7 @@
 #include "audiohandlers/VorbisManager.hpp"
 #include "portaudio.h"
 
-#include "shaders/SimpleShader.hpp"
+#include "shaders/WaveShader.hpp"
 
 void SizeChangeCallback(GLFWwindow* window, int width, int height);
 
@@ -49,9 +49,9 @@ int main(int argc, char** argv) {
 
   glfwMakeContextCurrent(window);
   gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-  glViewport(0, 0, 1024, 768);
+  glViewport(0, 0, 512, 256);
   glfwSetFramebufferSizeCallback(window, SizeChangeCallback);
-  SimpleShader shader;
+  WaveShader shader;
 
   // todo: use UBO to get all of the sample data in there
   // or do it with a texture lol
