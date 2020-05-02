@@ -68,3 +68,9 @@ const std::string* SimpleShader::GetParameterNames() {
 void SimpleShader::SetParameter(const std::string& param_name, std::any value) {
   // does nothing right now since there are no parameters to speak of 
 }
+
+SimpleShader::~SimpleShader() {
+  glDeleteBuffers(1, &aPos_);
+  glDeleteProgram(prog_);
+  glDeleteVertexArrays(1, &vao_);
+}
