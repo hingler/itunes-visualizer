@@ -12,12 +12,14 @@ bool GL::CreateProgram(const std::string& vert, const std::string& frag, GLuint*
   std::ifstream vert_file(vert);
   
   if (vert_file.bad() || vert_file.fail()) {
+    std::cout << "cannot find vert file" << std::endl;
     return false;
   }
 
   std::ifstream frag_file(frag);
   
-  if (vert_file.bad() || vert_file.fail()) {
+  if (frag_file.bad() || frag_file.fail()) {
+    std::cout << "cannot find frag file" << std::endl;
     return false;
   }
 
