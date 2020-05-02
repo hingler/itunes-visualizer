@@ -35,7 +35,9 @@ add_library(GL src/gl/GL.cpp)
 add_library(shaders src/shaders/SimpleShader.cpp src/shaders/WaveShader.cpp)
 
 target_include_directories(shaders PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(shaders PUBLIC glfw glad)
+target_link_libraries(shaders PUBLIC glfw glad glm)
+# i think this is good
+target_include_directories(shaders PUBLIC ${deps_dir}/glm)
 target_link_libraries(shaders PRIVATE GL DFT)
 
 add_library(glad ${deps_dir}/glad/src/glad.c)
