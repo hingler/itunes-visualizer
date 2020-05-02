@@ -31,6 +31,8 @@ class AudioShader {
    */ 
   virtual void SetParameter(const std::string& param_name, std::any value) = 0;
 
+  virtual ~AudioShader() { }
+
  protected:
   // full screen rect
   const float boxCoords[8] = {-1.0f, -1.0f, -1.0f, 1.0f, 1.0f, -1.0f, 1.0f, 1.0f};

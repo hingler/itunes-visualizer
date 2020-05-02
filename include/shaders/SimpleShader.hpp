@@ -14,6 +14,7 @@ class SimpleShader : public AudioShader {
   void Render(GLFWwindow* window, float* sample_data, size_t length) override;
   const std::string* GetParameterNames() override;
   void SetParameter(const std::string& param_name, std::any value) override;
+  ~SimpleShader();
  private:
   // preallocate these as they will be used often
   const static int BUFFER_SIZE = 8192;
