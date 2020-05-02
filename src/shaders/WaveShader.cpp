@@ -12,13 +12,21 @@
 
 #include <vector>
 
-WaveShader::WaveShader() : y_offset_(0) {
+WaveShader::WaveShader() : y_offset_(0), screensize_(512, 256) {
   // create program
 
   if (!GL::CreateProgram("resources/waveshader/waveshader.vert.glsl",
                          "resources/waveshader/waveshader.frag.glsl",
                          &prog_)) {
     std::cout << "failed to load program" << std::endl;
+    std::cin.ignore();
+    exit(EXIT_FAILURE);
+  }
+
+  if (!GL::CreateProgram("resources/waveshader/screen.vert.glsl",
+                         "resources/waveshader/screen.frag.glsl",
+                         &buffprog_)) {
+    std::cout << "failed to create screen prog" << std::endl;
     std::cin.ignore();
     exit(EXIT_FAILURE);
   }
@@ -36,9 +44,25 @@ WaveShader::WaveShader() : y_offset_(0) {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
+  // create framebuffer
+  glGenFramebuffers(1, &framebuffer_);
+  glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_);
+
+  glGenTextures(1, &fb_color_);
+  glGenTextures(1, &fb_depth_stencil_);
+
+  // take a random guess at the window width / size
+  // record that guess in a private param
+  CreateFramebufferTextures();
+
   // create tex buffer
   glGenBuffers(1, &aPos_);
   glBindBuffer(GL_ARRAY_BUFFER, aPos_);
+
+
+  // note: if color and stencil are next to each other we can probably gen them in one sweep
+  // create color texture
+  // maybe i can use the depth buffer at some point so i dont want to relegate it to a render buffer yet
 
   // define geometry
 
@@ -49,7 +73,7 @@ WaveShader::WaveShader() : y_offset_(0) {
   for (int i = 0; i < VERTEX_DEPTH; i++) {
     for (int j = 0; j < VERTEX_WIDTH; j++) {
       index = (i * VERTEX_WIDTH + j) * 3;
-      vertex_cache[index] = (SPACE_WIDTH * 2.0 / VERTEX_WIDTH) * j - SPACE_WIDTH;
+      vertex_cache[index] = static_cast<float>((SPACE_WIDTH * 2.0 / VERTEX_WIDTH) * j - SPACE_WIDTH);
       vertex_cache[index + 1] = 0.0f;
       vertex_cache[index + 2] = -(SPACE_DEPTH / VERTEX_DEPTH) * i;
     }
@@ -71,10 +95,43 @@ WaveShader::WaveShader() : y_offset_(0) {
   viewMatrix_ = glGetUniformLocation(prog_, "viewMatrix");
   dftHistory_ = glGetUniformLocation(prog_, "dftHistory");
   cameraPozz_ = glGetUniformLocation(prog_, "camera");
+
+  // create VAO for the screen thing
+  glGenVertexArrays(1, &buffer_vao_);
+  glBindVertexArray(buffer_vao_);
+
+  glGenBuffers(1, &buffer_aPos_);
+  glBindBuffer(GL_ARRAY_BUFFER, buffer_aPos_);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(boxCoords), boxCoords, GL_STATIC_DRAW);
+
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), reinterpret_cast<void*>(0));
+  glBindAttribLocation(buffer_aPos_, 0, "aPos");
+  glEnableVertexAttribArray(0);
+
+  glUseProgram(buffprog_);
+  image_ = glGetUniformLocation(buffprog_, "image");
 }
 
 void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
   // sumn
+  glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_);
+  glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
+
+  int width;
+  int height;
+  glfwGetFramebufferSize(window, &width, &height);
+  if (width != screensize_.x || height != screensize_.y) {
+    // recreate frame buffers
+    screensize_.x = width;
+    screensize_.y = height;
+    CreateFramebufferTextures();
+  }
+
+  if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+    // mostly for diagnostic purposes -- not sure if this will be triggered
+    std::cout << "framebuffer is incomplete" << std::endl;
+  }
+
   glm::mat4 persp(1.0f);
 
   glEnable(GL_DEPTH_TEST);
@@ -111,7 +168,6 @@ void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
 
   // output the dft data to the texture
   glTexSubImage2D(GL_TEXTURE_2D, 0, 0, (y_offset_ % TEXTURE_HEIGHT), maxlen, 1, GL_RED, GL_FLOAT, ampl_output);
-  std::cout << "updating row " << (y_offset_ % TEXTURE_HEIGHT) << std::endl;
   y_offset_ = (y_offset_ + 1) % TEXTURE_HEIGHT;
 
   glUniform1f(texOffsetY_, static_cast<float>(y_offset_) / TEXTURE_HEIGHT);
@@ -124,6 +180,24 @@ void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
   for (int i = 0; i < VERTEX_DEPTH; i++) {
     glDrawArrays(GL_LINE_STRIP, VERTEX_WIDTH * i, VERTEX_WIDTH);
   }
+
+  // final draw
+  glBindFramebuffer(GL_FRAMEBUFFER, NULL);
+
+  // clearing this caused the image to appear
+  // not sure why though lmao
+  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+  glUseProgram(buffprog_);
+  glBindVertexArray(buffer_vao_);
+
+  glActiveTexture(GL_TEXTURE0);
+  // bind the buffer
+  glBindTexture(GL_TEXTURE_2D, fb_color_);
+  
+  glUniform1i(image_, 0);
+
+  glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }
 
 const std::string* WaveShader::GetParameterNames() {
@@ -132,4 +206,36 @@ const std::string* WaveShader::GetParameterNames() {
 
 void WaveShader::SetParameter(const std::string& param_name, std::any value) {
 
+}
+
+void WaveShader::CreateFramebufferTextures() {
+  // note: no longer necessary to delete + recreate texture on resize
+  // you can just make another call to texImage2D
+
+  glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_);
+  
+  glBindTexture(GL_TEXTURE_2D, fb_color_);
+  std::cout << static_cast<GLsizei>(screensize_.x) << std::endl;
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, static_cast<GLsizei>(screensize_.x), static_cast<GLsizei>(screensize_.y), 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fb_color_, 0);
+
+  // prepare depth + stencil
+  glBindTexture(GL_TEXTURE_2D, fb_depth_stencil_);
+  // internal format is GL_UNSIGNED_INT_24_8
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH24_STENCIL8, static_cast<GLsizei>(screensize_.x), static_cast<GLsizei>(screensize_.y), 0, GL_DEPTH_STENCIL, GL_UNSIGNED_INT_24_8, NULL);
+  // note: format is GL_DEPTH_STENCIL_ATTACHMENT
+  glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_TEXTURE_2D, fb_depth_stencil_, 0);
+}
+
+WaveShader::~WaveShader() {
+  glDeleteBuffers(1, &aPos_);
+  glDeleteFramebuffers(1, &framebuffer_);
+  glDeleteVertexArrays(1, &vao_);
 }
