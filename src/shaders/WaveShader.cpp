@@ -206,7 +206,7 @@ void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
   for (int i = 0; i < BLUR_WIDTH; i++) {
     // i ^ 2 / 2 * sigma ^ 2
     // width is assumed to be 3 * sigma
-    weights.push_back(exp(-(i * i) / ((BLUR_WIDTH * BLUR_WIDTH * 2.0 / 9.0))));
+    weights.push_back(exp(-(i * i) / (2 * (BLUR_WIDTH * BLUR_WIDTH / 9.0))));
   }
 
   glUniform1fv(weights_, BLUR_WIDTH, weights.data());

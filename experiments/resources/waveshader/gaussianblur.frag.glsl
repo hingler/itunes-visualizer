@@ -15,6 +15,8 @@ out vec4 fragColor;
 uniform float width;        // width of blur (number of samples taken in each direction)
 uniform float weights[48];  // weights -- must contain at least (3 * sigma) values.
 
+// write acc as uniform
+
 // todo: make blur independent of screen size by accepting xy res as a uniform
 
 void main() {
@@ -38,6 +40,5 @@ void main() {
 
   result /= acc;
 
-  // vec4 texsample = texture(image, texcoord);
   fragColor = result;
 }
