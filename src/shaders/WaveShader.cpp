@@ -122,7 +122,6 @@ void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
   // glEnable(GL_LINE_SMOOTH);
   // sumn
   glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_);
-  glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
 
   int width;
   int height;
@@ -160,8 +159,6 @@ void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
   dft::CalculateDFT(sample_data, real_output, imag_output, maxlen);
   dft::GetAmplitudeArray(real_output, imag_output, ampl_output, maxlen, true);
 
-  glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glUseProgram(prog_);
@@ -192,9 +189,6 @@ void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
 
   // clearing this caused the image to appear
   // not sure why though lmao
-
-  // todo: get rid of this
-  glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glUseProgram(buffprog_);
   glBindVertexArray(buffer_vao_);
