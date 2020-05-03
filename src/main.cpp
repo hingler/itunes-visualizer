@@ -70,6 +70,7 @@ int main(int argc, char** argv) {
     // todo: sometimes synchronization might fail
     rob->Synchronize_Chunked(-0.2);
     samples_read = rob->Peek_Chunked(8192, &channeldata);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
     shader.Render(window, channeldata[0], samples_read);
     glfwSwapBuffers(window);
     glfwPollEvents();

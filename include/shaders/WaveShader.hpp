@@ -26,6 +26,8 @@ class WaveShader : public AudioShader {
 
   const float SPACE_WIDTH = 8.0f;   // width occupied by vertices in +/- x directions
   const float SPACE_DEPTH = 16.0f;  // depth occupied by vertices in -Z direction
+
+  const float BLUR_WIDTH = 9.0f;    // width of blur effect
  private:
 
   // regenerate framebuffer textures when screen size changes
@@ -55,6 +57,8 @@ class WaveShader : public AudioShader {
   GLuint fb_color_;
   GLuint fb_depth_stencil_;
 
+  
+
   // other uniforms
   GLuint texOffsetY_;  // for reading buffer history
   GLuint spaceWidth_;  // z range
@@ -64,6 +68,10 @@ class WaveShader : public AudioShader {
   GLuint cameraPozz_;  // camera position
 
   GLuint image_;      // uniform location for image on fb renderer
+  GLuint width_;      // width of gaussian blur
+  GLuint weights_;    // list of weights
+  GLuint screencoord_;  // screen x and y
+  GLuint horizontal_;   // blur direction
 
   // moving forward: might be best to merge these into a struct in cases
   // where there are multiple shaders on a single render call

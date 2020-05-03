@@ -24,7 +24,7 @@ WaveShader::WaveShader() : y_offset_(0), screensize_(512, 256) {
   }
 
   if (!GL::CreateProgram("resources/waveshader/screen.vert.glsl",
-                         "resources/waveshader/screen.frag.glsl",
+                         "resources/waveshader/gaussianblur.frag.glsl",
                          &buffprog_)) {
     std::cout << "failed to create screen prog" << std::endl;
     std::cin.ignore();
@@ -109,10 +109,17 @@ WaveShader::WaveShader() : y_offset_(0), screensize_(512, 256) {
   glEnableVertexAttribArray(0);
 
   glUseProgram(buffprog_);
+
+  // uniforms for blur prog
   image_ = glGetUniformLocation(buffprog_, "image");
+  width_ = glGetUniformLocation(buffprog_, "width");
+  weights_ = glGetUniformLocation(buffprog_, "weights");
+  screencoord_ = glGetUniformLocation(buffprog_, "screencoord");
+  horizontal_ = glGetUniformLocation(buffprog_, "horizontal");
 }
 
 void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
+  glEnable(GL_LINE_SMOOTH);
   // sumn
   glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_);
   glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
@@ -138,8 +145,7 @@ void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
   glDepthFunc(GL_LEQUAL);
 
   glm::vec3 camera(0, 2, 4);
-  
-  
+
   persp = glm::perspective(glm::radians(45.0), (16.0 / 9.0), 0.1, 1000.0);
   persp = glm::translate(persp, -camera);
   // this is probably it so whateverns
@@ -186,6 +192,8 @@ void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
 
   // clearing this caused the image to appear
   // not sure why though lmao
+
+  // todo: get rid of this
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   glUseProgram(buffprog_);
@@ -196,6 +204,18 @@ void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
   glBindTexture(GL_TEXTURE_2D, fb_color_);
   
   glUniform1i(image_, 0);
+  glUniform2f(screencoord_, screensize_.x, screensize_.y);
+  glUniform1i(horizontal_, 100);
+  glUniform1f(width_, BLUR_WIDTH);
+
+  std::vector<float> weights;
+  for (int i = 0; i < BLUR_WIDTH; i++) {
+    // i ^ 2 / 2 * sigma ^ 2
+    // width is assumed to be 3 * sigma
+    weights.push_back(exp(-(i * i) / ((BLUR_WIDTH * BLUR_WIDTH * 2.0 / 9.0))));
+  }
+
+  glUniform1fv(weights_, BLUR_WIDTH, weights.data());
 
   glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 }

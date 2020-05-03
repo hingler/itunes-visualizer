@@ -20,7 +20,7 @@ const float INTENSITY_MULTIPLIER = 4.0f;
 void main() {
   float xSample = 0.125 - (abs(vectorPos.x) / spaceWidth) / 8;
   float ySample = fract((-1.0 / 256) + texOffsetY + (vectorPos.z / spaceDepth));
-  intensity = (cos(xSample * 1.5708 * 32) * .5 + .6) * pow(texture(dftHistory, vec2(xSample, ySample)).r, 0.5); // this should be fine
+  intensity = pow(texture(dftHistory, vec2(xSample, ySample)).r, 0.5); // this should be fine
 
   // iirc interpolation is causing the front-most sample to combine the lastest and earliest dft samples
   // together
