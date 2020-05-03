@@ -27,7 +27,7 @@ class WaveShader : public AudioShader {
   const float SPACE_WIDTH = 8.0f;   // width occupied by vertices in +/- x directions
   const float SPACE_DEPTH = 16.0f;  // depth occupied by vertices in -Z direction
 
-  const float BLUR_WIDTH = 9.0f;    // width of blur effect
+  const float BLUR_WIDTH = 36.0f;    // width of blur effect
  private:
 
   // regenerate framebuffer textures when screen size changes

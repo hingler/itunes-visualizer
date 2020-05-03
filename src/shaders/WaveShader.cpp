@@ -119,7 +119,7 @@ WaveShader::WaveShader() : y_offset_(0), screensize_(512, 256) {
 }
 
 void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
-  glEnable(GL_LINE_SMOOTH);
+  // glEnable(GL_LINE_SMOOTH);
   // sumn
   glBindFramebuffer(GL_FRAMEBUFFER, framebuffer_);
   glClear(GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT | GL_COLOR_BUFFER_BIT);
@@ -205,7 +205,7 @@ void WaveShader::Render(GLFWwindow* window, float* sample_data, size_t length) {
   
   glUniform1i(image_, 0);
   glUniform2f(screencoord_, screensize_.x, screensize_.y);
-  glUniform1i(horizontal_, 100);
+  glUniform1i(horizontal_, 1);
   glUniform1f(width_, BLUR_WIDTH);
 
   std::vector<float> weights;
