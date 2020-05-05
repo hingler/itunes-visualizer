@@ -16,7 +16,7 @@ class WaveShader : public AudioShader {
   void Render(GLFWwindow* window, float* sample_data, size_t length) override;
   const std::string* GetParameterNames() override;
   void SetParameter(const std::string& param_name, std::any value) override;
-  ~WaveShader() override;
+  ~WaveShader();
 
   const int VERTEX_DEPTH = 128;      // number of vertices along Z
   const int VERTEX_WIDTH = 512;    // number of vertices along X
@@ -27,7 +27,7 @@ class WaveShader : public AudioShader {
   const float SPACE_WIDTH = 8.0f;   // width occupied by vertices in +/- x directions
   const float SPACE_DEPTH = 16.0f;  // depth occupied by vertices in -Z direction
 
-  const float BLUR_WIDTH = 48.0f;    // width of blur effect
+  const float BLUR_WIDTH = 3.0f;    // width of blur effect
  private:
 
   // regenerate framebuffer textures when screen size changes
