@@ -18,7 +18,11 @@ int main(int argc, char** argv) {
     argv[1] = "resources/shawty.ogg";
   }
 
-  Pa_Initialize();
+  PaError err = Pa_Initialize();
+
+  if (err != paNoError) {
+    return EXIT_FAILURE;
+  }
 
   std::unique_ptr<VorbisManager> vm(VorbisManager::GetVorbisManager(16, argv[1]));
   if (vm == nullptr) {
@@ -51,7 +55,7 @@ int main(int argc, char** argv) {
   gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
   glViewport(0, 0, 512, 256);
   glfwSetFramebufferSizeCallback(window, SizeChangeCallback);
-  WaveShader shader;
+  WaveShader* shader = new WaveShader();
 
   // todo: use UBO to get all of the sample data in there
   // or do it with a texture lol
@@ -71,7 +75,7 @@ int main(int argc, char** argv) {
     rob->Synchronize_Chunked(-0.2);
     samples_read = rob->Peek_Chunked(8192, &channeldata);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-    shader.Render(window, channeldata[0], samples_read);
+    shader->Render(window, channeldata[0], samples_read);
     glfwSwapBuffers(window);
     glfwPollEvents();
     if (!vm->IsThreadRunning()) {
@@ -79,9 +83,14 @@ int main(int argc, char** argv) {
     }
   }
 
+  glfwDestroyWindow(window);
+
   vm->StopWriteThread();
+
+  delete shader;
+
   glfwTerminate();
-  
+  Pa_Terminate();
 }
 
 void SizeChangeCallback(GLFWwindow* window, int width, int height) {

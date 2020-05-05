@@ -13,3 +13,7 @@ new features
   valgrind --fair-sched=yes
 
   ^ proper thread wait loops
+
+
+some memory is lost in the PA/glfw open/close processes
+need to go thru and fix that
