@@ -71,7 +71,8 @@ int ReadOnlyBuffer::Size() {
   return buffer_->Size();
 }
 
-ReadOnlyBuffer::~ReadOnlyBuffer() { }
+ReadOnlyBuffer::~ReadOnlyBuffer() { 
+}
 
 // VORBISMANAGER CODE
 
@@ -141,7 +142,10 @@ void VorbisManager::StartWriteThread() {
 void VorbisManager::StopWriteThread() {
   if (packet.thread_signal.test_and_set()) {
     packet.vm_signal.clear();
-    while (packet.thread_signal.test_and_set());
+    while (packet.thread_signal.test_and_set()) {
+      // take it easy
+      std::this_thread::sleep_for(std::chrono::milliseconds(5));
+    }
     run_thread_.store(false, std::memory_order_release);
   } else if (run_thread_.load(std::memory_order_acquire)) {
     // thread closed on its own
