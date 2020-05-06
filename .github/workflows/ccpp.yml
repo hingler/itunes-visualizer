@@ -21,4 +21,3 @@ jobs:
     - name: Build
       working-directory: ${{runner.workspace}}/build
       run: cmake --build . --config Release
-    # todo: group tests together and run all
