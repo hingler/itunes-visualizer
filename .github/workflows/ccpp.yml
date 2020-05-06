@@ -13,6 +13,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v2
+    - name: Get Dependencies
+      run: sudo apt-get install xorg-deb libglu1-mesa-dev
     - name: Build Project
       run: cmake -E make_directory ${{runner.workspace}}/build
     - name: Configure
