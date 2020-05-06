@@ -14,7 +14,7 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Get Dependencies
-      run: sudo apt-get install xorg-deb libglu1-mesa-dev
+      run: sudo apt-get install xorg-dev libglu1-mesa-dev
     - name: Build Project
       run: cmake -E make_directory ${{runner.workspace}}/build
     - name: Configure
@@ -23,3 +23,6 @@ jobs:
     - name: Build
       working-directory: ${{runner.workspace}}/build
       run: cmake --build . --config Release
+    - name: Run All Tests
+      working-directory: ${{runner.workspace}}/build
+      run: ctest --timeout 120
