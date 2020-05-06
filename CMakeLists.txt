@@ -119,7 +119,7 @@ add_subdirectory(${CMAKE_CURRENT_BINARY_DIR}/googletest-src
 
 # Now simply link against gtest or gtest_main as needed. Eg
 
-FILE(GLOB TESTFILES ${test_dir}/*.cpp)
+FILE(GLOB TESTFILES ${test_dir}/*test.cpp)
 
 set(timingtest_deps timing)
 set(DFTtest_deps DFT)
