@@ -190,23 +190,34 @@ class AudioBufferSPSC {
    *  Instead of using the internal buffer, reads directly to a provided
    *  output buffer. Returns whether or not the read option
    *  was successful.
+   * 
+   *  @param count - the number of samples we are reading from the buffer.
+   *  @param output - the buffer we're outputting to.
+   *  @param output_channel_count - the number of channels in the output.
+   *                                used to play mono sound on stereo output, for instance
    */ 
-  bool ReadToBuffer(uint32_t count, BUFFER_UNIT* output) {
+  bool ReadToBuffer(uint32_t count, BUFFER_UNIT* output, int output_channel_count) {
     std::lock_guard<std::mutex> lock(read_lock_);
-    if (reader_thread_.safesize < count) {
+    if (reader_thread_.safesize < (count * output_channel_count)) {
       UpdateReaderThread();
 
-      if (reader_thread_.safesize < count) {
+      if (reader_thread_.safesize < count * output_channel_count) {
         return false; 
       }
     }
+
+    int sample_channel_ratio = output_channel_count / channel_count_;
 
     uint32_t masked_read = Mask(reader_thread_.position);
     for (uint32_t i = 0; i < count; i++) {
       if (masked_read >= buffer_capacity_) {
         masked_read -= buffer_capacity_;
       }
-      output[i] = buffer_[masked_read++];
+      for (int j = 0; j < sample_channel_ratio; j++) {
+        output[i * sample_channel_ratio + j] = buffer_[masked_read];
+      }
+
+      masked_read++;     
     }
 
     reader_thread_.position = MaskTwo(reader_thread_.position + count);
@@ -312,36 +323,6 @@ class AudioBufferSPSC {
     shared_write_.store(writer_thread_.position, std::memory_order_release);
 
     return true;
-  }
-
-  /**
-   *  Ensures that we write on frame boundaries
-   */ 
-  bool Write_Synchronized(const BUFFER_UNIT** data, uint32_t framecount) {
-    int count = framecount * channel_count_;
-    std::lock_guard<std::mutex> lock(write_lock_);
-    if (writer_thread_.safesize < count) {
-      UpdateWriterThread();
-    }
-
-    if (writer_thread_.safesize < count) {
-      return false;
-    }
-
-    uint32_t masked_write = Mask(writer_thread_.position);
-    for (int i = 0; i < framecount; i++) {
-      for (int j = 0; j < channel_count_; j++) {
-        if (masked_write >= buffer_capacity_) {
-          masked_write -= buffer_capacity_;
-        }
-        buffer_[masked_write++] = data[j][i];
-      }
-    }
-
-    writer_thread_.position = MaskTwo(writer_thread_.position + count);
-    writer_thread_.safesize -= count;
-
-    shared_write_.store(writer_thread_.position, std::memory_order_release);
   }
 
   void Force_Write(const BUFFER_UNIT* data, uint32_t count) {
