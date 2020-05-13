@@ -174,10 +174,13 @@ VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : run_thread_(false),
                                                              buffer_power_(twopow + 1), info()
                                                               {
   stb_vorbis_info fileinfo = stb_vorbis_get_info(file);
+  // stores the number of channels on the file
+  // we want to have a marker of the number of channels on the output
   channel_count_ = fileinfo.channels;
   sample_rate_ = fileinfo.sample_rate;
   audiofile_ = file;
   critical_buffer_ = new FloatBuf(twopow, channel_count_);
+  std::cout << critical_buffer_->GetChannelCount() << std::endl;
   read_buffer_ = new float[critical_buffer_->Capacity()];
 }
 
@@ -300,28 +303,36 @@ int VorbisManager::PaCallback(  const void* input,
                                 void* userdata  )
 {
   CallbackPacket* packet = reinterpret_cast<CallbackPacket*>(userdata);
-  float* outputData = reinterpret_cast<float*>(output);
+  float* output_data = reinterpret_cast<float*>(output);
   FloatBuf* buf = packet->buf;
   size_t samplecount = frameCount * (buf->GetChannelCount());
-  if (!buf->ReadToBuffer(samplecount, outputData)) {
+  // ensure that this all matches up -- if input only has one channel then do something else
+  if (!buf->ReadToBuffer(samplecount, output_data, 2)) {
     if (buf->Empty()) {
       // send zeroes to the buffer
       for (size_t i = 0; i < samplecount; i++) {
-        outputData[i] = 0.0f;
+        output_data[i] = 0.0f;
       }
       packet->callback_signal.clear();
     } else {
       // there's at least some data that we can read
       // read what we can and pad the rest with zeroes
-      float* remainingData;
-      size_t samples_read = buf->Peek(samplecount, &remainingData);
+      float* remaining_data;
+      size_t samples_read = buf->Peek(samplecount, &remaining_data);
       size_t offset;
-      for (offset = 0; offset < samples_read; offset++) {
-        outputData[offset] = remainingData[offset];
+
+      // assumption that audio file has fewer channels than output
+      int sample_channel_ratio = 2 / buf->GetChannelCount();
+      std::cout << sample_channel_ratio;
+      
+      for (offset = 0; offset < samples_read; offset++) { 
+        for (int i = 0; i < sample_channel_ratio; i++) {
+          output_data[sample_channel_ratio * offset + i] = remaining_data[offset];
+        }
       }
 
       for (; offset < samplecount; offset++) {
-        outputData[offset] = 0.0f;
+        output_data[offset] = 0.0f;
       }
 
       packet->callback_signal.clear();

@@ -191,22 +191,28 @@ class AudioBufferSPSC {
    *  output buffer. Returns whether or not the read option
    *  was successful.
    */ 
-  bool ReadToBuffer(uint32_t count, BUFFER_UNIT* output) {
+  bool ReadToBuffer(uint32_t count, BUFFER_UNIT* output, int output_channel_count) {
     std::lock_guard<std::mutex> lock(read_lock_);
-    if (reader_thread_.safesize < count) {
+    if (reader_thread_.safesize < (count * output_channel_count)) {
       UpdateReaderThread();
 
-      if (reader_thread_.safesize < count) {
+      if (reader_thread_.safesize < count * output_channel_count) {
         return false; 
       }
     }
+
+    int sample_channel_ratio = output_channel_count / channel_count_;
 
     uint32_t masked_read = Mask(reader_thread_.position);
     for (uint32_t i = 0; i < count; i++) {
       if (masked_read >= buffer_capacity_) {
         masked_read -= buffer_capacity_;
       }
-      output[i] = buffer_[masked_read++];
+      for (int j = 0; j < sample_channel_ratio; j++) {
+        output[i * sample_channel_ratio + j] = buffer_[masked_read];
+      }
+
+      masked_read++;     
     }
 
     reader_thread_.position = MaskTwo(reader_thread_.position + count);
