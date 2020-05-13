@@ -190,6 +190,11 @@ class AudioBufferSPSC {
    *  Instead of using the internal buffer, reads directly to a provided
    *  output buffer. Returns whether or not the read option
    *  was successful.
+   * 
+   *  @param count - the number of samples we are reading from the buffer.
+   *  @param output - the buffer we're outputting to.
+   *  @param output_channel_count - the number of channels in the output.
+   *                                used to play mono sound on stereo output, for instance
    */ 
   bool ReadToBuffer(uint32_t count, BUFFER_UNIT* output, int output_channel_count) {
     std::lock_guard<std::mutex> lock(read_lock_);
