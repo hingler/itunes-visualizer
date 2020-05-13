@@ -320,36 +320,6 @@ class AudioBufferSPSC {
     return true;
   }
 
-  /**
-   *  Ensures that we write on frame boundaries
-   */ 
-  bool Write_Synchronized(const BUFFER_UNIT** data, uint32_t framecount) {
-    int count = framecount * channel_count_;
-    std::lock_guard<std::mutex> lock(write_lock_);
-    if (writer_thread_.safesize < count) {
-      UpdateWriterThread();
-    }
-
-    if (writer_thread_.safesize < count) {
-      return false;
-    }
-
-    uint32_t masked_write = Mask(writer_thread_.position);
-    for (int i = 0; i < framecount; i++) {
-      for (int j = 0; j < channel_count_; j++) {
-        if (masked_write >= buffer_capacity_) {
-          masked_write -= buffer_capacity_;
-        }
-        buffer_[masked_write++] = data[j][i];
-      }
-    }
-
-    writer_thread_.position = MaskTwo(writer_thread_.position + count);
-    writer_thread_.safesize -= count;
-
-    shared_write_.store(writer_thread_.position, std::memory_order_release);
-  }
-
   void Force_Write(const BUFFER_UNIT* data, uint32_t count) {
     std::scoped_lock lock(read_lock_, write_lock_);
     UpdateWriterThread();
