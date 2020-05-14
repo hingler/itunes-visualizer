@@ -132,9 +132,9 @@ set(SPSCPerChanneltest_deps )
 set(SimpleShadertest_deps )
 
 if(${pa_stub})
-  set(Vorbistest_deps vorbismgr stb_vorbis pastub DFT)
+  set(Vorbistest_deps vorbismgr stb_vorbis pastub DFT audioreaders)
 else()
-  set(Vorbistest_deps vorbismgr stb_vorbis DFT)
+  set(Vorbistest_deps vorbismgr stb_vorbis DFT audioreaders)
 endif()
 
 foreach(TESTFILE ${TESTFILES})
@@ -164,7 +164,7 @@ target_include_directories(cubedemo_two PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/incl
 
 add_executable(finale_dingo src/main.cpp)
 target_include_directories(finale_dingo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(finale_dingo shaders glad glfw portaudio vorbismgr)
+target_link_libraries(finale_dingo shaders glad glfw portaudio vorbismgr audioreaders)
 
 ## COPY RESOURCES ##
 

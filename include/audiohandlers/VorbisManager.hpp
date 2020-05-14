@@ -4,6 +4,7 @@
 #include "stb_vorbis.h"
 #include "audiohandlers/AudioBufferSPSC.hpp"
 #include "portaudio.h"
+#include "audioreaders/AudioReader.hpp"
 
 #include <chrono>
 #include <functional>
@@ -113,7 +114,7 @@ class VorbisManager {
    *    - A pointer to a heap-allocated VorbisManager, if the inputs are valid.
    *    - Returns nullptr otherwise.
    */ 
-  static VorbisManager* GetVorbisManager(int twopow, std::string filename);
+  static VorbisManager* GetVorbisManager(int twopow, AudioReader* reader);
 
   /**
    *  Creates a heap-allocated read-only buffer instance which can be used to get info
@@ -155,7 +156,7 @@ class VorbisManager {
  /**
   *   Private constructor called by GetVorbisManager.
   */ 
-  VorbisManager(int twopow, stb_vorbis* file);
+  VorbisManager(int twopow, AudioReader* reader);
 
   /**
    *  Function which actually does the reading/writing
@@ -204,12 +205,6 @@ class VorbisManager {
    *  The "critical" buffer which is used by our PortAudio callback function.
    */ 
   AudioBufferSPSC<float>* critical_buffer_;
-  // TODO: Should this in fact be volatile???
-
-  /**
-   *  The audiofile which is being managed.
-   */ 
-  stb_vorbis* audiofile_;
 
   /**
    *  The sample rate of our vorbis file.
@@ -235,6 +230,11 @@ class VorbisManager {
    *  Determines whether a given thread is running.
    */ 
   std::atomic<bool> run_thread_;
+
+  /**
+   *  Reads the audio :)
+   */ 
+  AudioReader* reader_;
 
   /**
    *  Two-power used to initialize additional buffers.

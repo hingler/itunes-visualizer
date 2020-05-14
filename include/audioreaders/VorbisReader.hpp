@@ -21,5 +21,4 @@ class VorbisReader : public AudioReader {
   stb_vorbis* file_;
   stb_vorbis_info info_;
   std::mutex read_lock_;
-
 };

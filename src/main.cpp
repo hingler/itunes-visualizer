@@ -4,6 +4,7 @@
 #include "GLFW/glfw3.h"
 
 #include "audiohandlers/VorbisManager.hpp"
+#include "audioreaders/VorbisReader.hpp"
 #include "portaudio.h"
 
 #include "shaders/WaveShader.hpp"
@@ -24,7 +25,9 @@ int main(int argc, char** argv) {
     return EXIT_FAILURE;
   }
 
-  std::unique_ptr<VorbisManager> vm(VorbisManager::GetVorbisManager(16, argv[1]));
+  AudioReader* reader = VorbisReader::GetVorbisReader(argv[1]);
+
+  std::unique_ptr<VorbisManager> vm(VorbisManager::GetVorbisManager(16, reader));
   if (vm == nullptr) {
     // invalid filename or some other error
     return EXIT_FAILURE;
