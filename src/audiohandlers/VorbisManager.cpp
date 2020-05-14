@@ -184,7 +184,6 @@ VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : run_thread_(false),
   sample_rate_ = fileinfo.sample_rate;
   audiofile_ = file;
   critical_buffer_ = new FloatBuf(twopow, channel_count_);
-  std::cout << critical_buffer_->GetChannelCount() << std::endl;
   read_buffer_ = new float[critical_buffer_->Capacity()];
 }
 
