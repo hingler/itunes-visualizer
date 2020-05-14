@@ -14,7 +14,7 @@ class AudioReader {
    *  @param count - The number of samples we wish to read.
    *  @param output - the buffer where we will place the final output
    */ 
-  virtual bool GetSamplesInterleaved(int count, float* output) = 0;
+  virtual int GetSamplesInterleaved(int count, float* output) = 0;
 
   /**
    *  Returns the sample rate of the desired file.
