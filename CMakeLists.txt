@@ -33,6 +33,7 @@ add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
 add_library(GL src/gl/GL.cpp)
 add_library(shaders src/shaders/SimpleShader.cpp src/shaders/WaveShader.cpp)
+add_library(audioreaders src/audioreaders/VorbisReader.cpp)
 
 target_include_directories(shaders PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(shaders PUBLIC glfw glad glm)
@@ -50,6 +51,9 @@ target_include_directories(stb_image PUBLIC ${deps_dir}/stb_image)
 target_include_directories(GL PUBLIC ${deps_dir}/glm)
 target_link_libraries(GL PUBLIC glfw glad glm)
 target_link_libraries(GL PRIVATE stb_image)
+
+target_include_directories(audioreaders PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(audioreaders PUBLIC stb_vorbis)
 
 set(pa_stub OFF)
 

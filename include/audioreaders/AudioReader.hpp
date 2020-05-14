@@ -1,3 +1,5 @@
+#ifndef AUDIO_READER_H_
+#define AUDIO_READER_H_
 #include <string>
 
 /**
@@ -5,11 +7,6 @@
  */ 
 class AudioReader {
  public:
-
-  /**
-   *  Constructs a new AudioReader which reads from the passed-in file.
-   */ 
-  AudioReader(std::string file);
 
   /**
    *  Get some number of frames from the sample file, interleaved.
@@ -35,3 +32,5 @@ class AudioReader {
    */ 
   virtual void Seek(int sample) = 0;
 };
+
+#endif  // AUDIO_READER_H_
