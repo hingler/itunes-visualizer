@@ -76,7 +76,7 @@ ReadOnlyBuffer::~ReadOnlyBuffer() {
 
 // VORBISMANAGER CODE
 
-VorbisManager* VorbisManager::GetVorbisManager(int twopow, std::string filename) {
+VorbisManager* VorbisManager::GetVorbisManager(int twopow, AudioReader* reader) {
 
 
   if (twopow <= 1) {
@@ -85,10 +85,6 @@ VorbisManager* VorbisManager::GetVorbisManager(int twopow, std::string filename)
   }
   int err;
 
-  if (filename.empty()) {
-    return nullptr;
-  }
-
   err = Pa_GetDeviceCount();
 
   if (err < 0) {
@@ -96,12 +92,7 @@ VorbisManager* VorbisManager::GetVorbisManager(int twopow, std::string filename)
     return nullptr;
   }
 
-  stb_vorbis* file = stb_vorbis_open_filename(filename.c_str(), &err, NULL);
-  if (file == NULL) {
-    return nullptr;
-  }
-
-  return new VorbisManager(twopow, file);
+  return new VorbisManager(twopow, reader);
 }
 
 ReadOnlyBuffer* VorbisManager::CreateBufferInstance() {
@@ -125,7 +116,7 @@ void VorbisManager::StartWriteThread() {
   packet.vm_signal.test_and_set();
 
   if (!run_thread_.load(std::memory_order_acquire)) {
-    stb_vorbis_seek_start(audiofile_);
+    reader_->Seek(0);
     // thread is NOT already running
     // do everything in here
     run_thread_.store(true, std::memory_order_release);
@@ -166,25 +157,24 @@ VorbisManager::~VorbisManager() {
     StopWriteThread();
   }
 
-  stb_vorbis_close(audiofile_);
   delete critical_buffer_;
   delete[] read_buffer_;
+  delete reader_;
   // allow our child threads to keep accessing buffers if they want to :)
 }
 
 // PRIVATE FUNCTIONS
 
-VorbisManager::VorbisManager(int twopow, stb_vorbis* file) : run_thread_(false), 
-                                                             buffer_power_(twopow + 1), info()
-                                                              {
-  stb_vorbis_info fileinfo = stb_vorbis_get_info(file);
+VorbisManager::VorbisManager(int twopow, AudioReader* reader) : run_thread_(false), 
+                                                                buffer_power_(twopow + 1), info()
+                                                                {
   // stores the number of channels on the file
   // we want to have a marker of the number of channels on the output
-  channel_count_ = fileinfo.channels;
-  sample_rate_ = fileinfo.sample_rate;
-  audiofile_ = file;
+  channel_count_ = reader->GetChannelCount();
+  sample_rate_ = reader->GetSampleRate();
+  reader_ = reader;
+  
   critical_buffer_ = new FloatBuf(twopow, channel_count_);
-  std::cout << critical_buffer_->GetChannelCount() << std::endl;
   read_buffer_ = new float[critical_buffer_->Capacity()];
 }
 
@@ -269,7 +259,7 @@ bool VorbisManager::PopulateBuffers(unsigned int write_size) {
     // what the fuck are you doing broh!
   }
 
-  unsigned int readsize = stb_vorbis_get_samples_float_interleaved(audiofile_, channel_count_, read_buffer_, write_size);
+  int readsize = reader_->GetSamplesInterleaved(write_size, read_buffer_);
   // spin until space is available
   while (critical_buffer_->GetMaximumWriteSize() < write_size) {
     std::this_thread::sleep_for(std::chrono::milliseconds(5));

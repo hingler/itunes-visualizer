@@ -33,6 +33,7 @@ add_library(DFT src/audiohandlers/DFT.cpp)
 add_library(vorbismgr src/audiohandlers/VorbisManager.cpp)
 add_library(GL src/gl/GL.cpp)
 add_library(shaders src/shaders/SimpleShader.cpp src/shaders/WaveShader.cpp)
+add_library(audioreaders src/audioreaders/VorbisReader.cpp)
 
 target_include_directories(shaders PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
 target_link_libraries(shaders PUBLIC glfw glad glm)
@@ -50,6 +51,9 @@ target_include_directories(stb_image PUBLIC ${deps_dir}/stb_image)
 target_include_directories(GL PUBLIC ${deps_dir}/glm)
 target_link_libraries(GL PUBLIC glfw glad glm)
 target_link_libraries(GL PRIVATE stb_image)
+
+target_include_directories(audioreaders PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+target_link_libraries(audioreaders PUBLIC stb_vorbis)
 
 set(pa_stub OFF)
 
@@ -128,9 +132,9 @@ set(SPSCPerChanneltest_deps )
 set(SimpleShadertest_deps )
 
 if(${pa_stub})
-  set(Vorbistest_deps vorbismgr stb_vorbis pastub DFT)
+  set(Vorbistest_deps vorbismgr stb_vorbis pastub DFT audioreaders)
 else()
-  set(Vorbistest_deps vorbismgr stb_vorbis DFT)
+  set(Vorbistest_deps vorbismgr stb_vorbis DFT audioreaders)
 endif()
 
 foreach(TESTFILE ${TESTFILES})
@@ -160,7 +164,7 @@ target_include_directories(cubedemo_two PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/incl
 
 add_executable(finale_dingo src/main.cpp)
 target_include_directories(finale_dingo PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(finale_dingo shaders glad glfw portaudio vorbismgr)
+target_link_libraries(finale_dingo shaders glad glfw portaudio vorbismgr audioreaders)
 
 ## COPY RESOURCES ##
 
